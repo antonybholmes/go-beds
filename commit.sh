@@ -1,4 +1,4 @@
-msg=$1 #"Bug fixes and updates."
+#msg=$1 #"Bug fixes and updates."
 type="fix"
 branch="dev"
 
