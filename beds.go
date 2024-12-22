@@ -2,11 +2,8 @@ package beds
 
 import (
 	"database/sql"
-	"fmt"
 	"path/filepath"
-	"strings"
 
-	basemath "github.com/antonybholmes/go-basemath"
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-sys"
 	_ "github.com/mattn/go-sqlite3"
@@ -21,21 +18,20 @@ import (
 
 const PLATFORMS_SQL = `SELECT DISTINCT platform FROM beds ORDER BY platform`
 const GENOMES_SQL = `SELECT DISTINCT genome FROM beds WHERE platform = ?1 ORDER BY genome`
-const BEDS_SQL = `SELECT DISTINCT genome FROM beds WHERE platform = ?1 ORDER BY genome`
+const BEDS_SQL = `SELECT id, public_id, platform, genome, name, file FROM beds WHERE platform = ?1 AND genome = ?2 ORDER BY name`
 
-const FIND_TRACK_SQL = `SELECT platform, genome, name, reads, stat_mode, dir FROM tracks WHERE tracks.public_id = ?1`
+const FIND_BED_SQL = `SELECT id, public_id, platform, genome, name, file FROM beds WHERE public_id = ?1`
 
-const BIN_SQL = `SELECT start, end, reads 
-	FROM bins
- 	WHERE start >= ?1 AND end < ?2
-	ORDER BY start`
+const BED_SQL = `SELECT chr, start, end, score, name, tags 
+	FROM bed
+ 	WHERE chr = ?1 AND ((start >= ?2 AND start <= ?3) OR (end >= ?2 AND end <= ?3) OR (start <= ?2 AND end >= ?3))
+	ORDER BY chr, start`
 
-type BinCounts struct {
-	Track    Track         `json:"track"`
+type BedFeature struct {
 	Location *dna.Location `json:"location"`
-	Bins     []uint        `json:"bins"`
-	Start    uint          `json:"start"`
-	BinWidth uint          `json:"binWidth"`
+	Name     string        `json:"name,omitempty"`
+	Score    float64       `json:"score"`
+	Tags     string        `json:"tags,omitempty"`
 }
 
 type Track struct {
@@ -67,72 +63,18 @@ type AllBeds struct {
 	Platforms []BedPlaform `json:"platforms"`
 }
 
-type TrackReader struct {
-	Dir      string
-	Stat     string
-	Track    Track
-	BinWidth uint
-	Reads    uint
+type BedReader struct {
+	file string
 }
 
-func NewTrackReader(dir string, track Track, binWidth uint) (*TrackReader, error) {
+func NewBedReader(file string) (*BedReader, error) {
 
-	dir = filepath.Join(dir, track.Platform, track.Genome, track.Name)
-
-	path := filepath.Join(dir, "track.db")
-
-	db, err := sql.Open("sqlite3", path)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer db.Close()
-
-	var reads uint
-	var name string
-	var publicId string
-	var stat string
-	err = db.QueryRow(TRACK_SQL).Scan(&publicId, &name, &reads, &stat)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error opening %s", file)
-	// }
-
-	// defer file.Close()
-	// // Create a scanner
-	// scanner := bufio.NewScanner(file)
-	// scanner.Scan()
-
-	// count, err := strconv.Atoi(scanner.Text())
-
-	// if err != nil {
-	// 	return nil, fmt.Errorf("could not count reads")
-	// }
-
-	return &TrackReader{Dir: dir,
-		Stat:     stat,
-		BinWidth: binWidth,
-		Reads:    reads,
-		Track:    track}, nil
+	return &BedReader{file: file}, nil
 }
 
-func (reader *TrackReader) getPath(location *dna.Location) string {
-	return filepath.Join(reader.Dir, fmt.Sprintf("%s_bw%d_%s.db", strings.ToLower(location.Chr), reader.BinWidth, reader.Track.Genome))
+func (reader *BedReader) BedFeatures(location *dna.Location) ([]BedFeature, error) {
 
-}
-
-func (reader *TrackReader) BinCounts(location *dna.Location) (*BinCounts, error) {
-
-	path := reader.getPath(location)
-
-	log.Debug().Msgf("track path %s", path)
-
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open("sqlite3", reader.file)
 
 	if err != nil {
 		log.Debug().Msgf("bin sql err %s", err)
@@ -141,64 +83,36 @@ func (reader *TrackReader) BinCounts(location *dna.Location) (*BinCounts, error)
 
 	defer db.Close()
 
-	startBin := (location.Start - 1) / reader.BinWidth
-	endBin := (location.End - 1) / reader.BinWidth
-
-	rows, err := db.Query(BIN_SQL,
-		startBin,
-		endBin)
+	rows, err := db.Query(BED_SQL,
+		location.Chr,
+		location.Start,
+		location.End)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var readBlockStart uint
-	var readBlockEnd uint
-	var count uint
-	reads := make([]uint, endBin-startBin+1)
-	index := 0
+	var chr string
+	var start uint
+	var end uint
+	var score float64
+	var name string
+	var tags string
+
+	ret := make([]BedFeature, 0, 10)
 
 	for rows.Next() {
-		err := rows.Scan(&readBlockStart, &readBlockEnd, &count)
+		err := rows.Scan(&chr, &start, &end, &score, &name, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		// we don't want to load bin data that goes outside our coordinates
-		// of interest. A long gapped bin, may end beyond the blocks we are
-		// interested in, so we need to stop the loop short if so.
-		endBin := basemath.UintMin(startBin+uint(len(reads)), readBlockEnd)
-
-		for bin := readBlockStart; bin < endBin; bin++ {
-			reads[bin-startBin] = count
-		}
-
-		index++
+		ret = append(ret, BedFeature{Location: dna.NewLocation(chr, start, end), Score: score, Name: name, Tags: tags})
 	}
 
-	return &BinCounts{
-		Track:    reader.Track,
-		Location: location,
-		Start:    startBin*reader.BinWidth + 1,
-		Bins:     reads,
+	return ret, nil
 
-		BinWidth: reader.BinWidth,
-	}, nil
-
-	// var magic uint32
-	// binary.Read(f, binary.LittleEndian, &magic)
-	// var binSizeBytes byte
-	// binary.Read(f, binary.LittleEndian, &binSizeBytes)
-
-	// switch binSizeBytes {
-	// case 1:
-	// 	return reader.ReadsUint8(location)
-	// case 2:
-	// 	return reader.ReadsUint16(location)
-	// default:
-	// 	return reader.ReadsUint32(location)
-	// }
 }
 
 // func (reader *TracksReader) ReadsUint8(location *dna.Location) (*BinCounts, error) {
@@ -379,26 +293,29 @@ func (bedsDb *BedsDB) Genomes(platform string) ([]string, error) {
 }
 
 func (bedsDb *BedsDB) Beds(platform string, genome string) ([]BedInfo, error) {
-	rows, err := bedsDb.db.Query(BEDS_SQL, platform)
+	rows, err := bedsDb.db.Query(BEDS_SQL, platform, genome)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	ret := make([]string, 0, 10)
+	ret := make([]BedInfo, 0, 10)
 
 	defer rows.Close()
 
-	var genome string
+	var id uint
+	var publicId string
+	var name string
+	var file string
 
 	for rows.Next() {
-		err := rows.Scan(&genome)
+		err := rows.Scan(&id, &publicId, &platform, &genome, &name, &file)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, genome)
+		ret = append(ret, BedInfo{PublicId: publicId, Platform: platform, Genome: genome, Name: name, File: file})
 	}
 
 	return ret, nil
@@ -441,36 +358,23 @@ func (bedsDb *BedsDB) AllTracks() (*AllBeds, error) {
 	}
 
 	return &ret, nil
-
-	geneRows, err := bedsDb.db.Query(OVERLAPPING_GENES_FROM_LOCATION_SQL,
-		location.Chr,
-		location.Start,
-		location.End)
-
-	if err != nil {
-		return nil, err //fmt.Errorf("there was an error with the database query")
-	}
-
-	return &ret, nil
 }
 
-func (tracksDb *BedsDB) ReaderFromTrackId(publicId string, binWidth uint) (*TrackReader, error) {
+func (tracksDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 
 	var platform string
 	var genome string
 	var name string
-	var reads uint
-	var stat string
-	var dir string
+	var id uint
+
+	var file string
 	//const FIND_TRACK_SQL = `SELECT platform, genome, name, reads, stat_mode, dir FROM tracks WHERE tracks.publicId = ?1`
 
-	err := tracksDb.db.QueryRow(FIND_TRACK_SQL, publicId).Scan(&platform, &genome, &name, &reads, &stat, &dir)
+	err := tracksDb.db.QueryRow(FIND_BED_SQL, publicId).Scan(&id, &publicId, &platform, &genome, &name, &file)
 
 	if err != nil {
 		return nil, err
 	}
 
-	track := Track{Platform: platform, Genome: genome, Name: name}
-
-	return NewTrackReader(tracksDb.dir, track, binWidth)
+	return NewBedReader(file)
 }

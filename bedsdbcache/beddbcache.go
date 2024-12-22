@@ -3,7 +3,6 @@ package beddbcache
 import (
 	"sync"
 
-	"github.com/antonybholmes/go-bed"
 	"github.com/antonybholmes/go-beds"
 )
 
@@ -26,7 +25,7 @@ func Dir() string {
 	return instance.Dir()
 }
 
-func Platforms() []string {
+func Platforms() ([]string, error) {
 	return instance.Platforms()
 }
 
@@ -34,14 +33,10 @@ func Genomes(platform string) ([]string, error) {
 	return instance.Genomes(platform)
 }
 
-func Tracks(platform string, genome string) ([]bed.TrackInfo, error) {
-	return instance.Tracks(platform, genome)
-}
-
-func AllTracks() (*bed.AllTracks, error) {
+func AllBeds() (*beds.AllBeds, error) {
 	return instance.AllTracks()
 }
 
-func ReaderFromTrackId(publicId string, binWidth uint) (*bed.TrackReader, error) {
-	return instance.ReaderFromTrackId(publicId, binWidth)
+func ReaderFromId(publicId string) (*beds.BedReader, error) {
+	return instance.ReaderFromId(publicId)
 }

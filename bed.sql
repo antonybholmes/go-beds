@@ -13,9 +13,9 @@ CREATE TABLE bed (
 	chr TEXT NOT NULL,
 	start INTEGER NOT NULL,
 	end INTEGER NOT NULL,
-	score REAL,
-	name TEXT,
-	tags TEXT,
+	score REAL NOT NULL DEFAULT 0,
+	name TEXT NOT NULL DEFAULT '',
+	tags TEXT NOT NULL DEFAULT '',
 	UNIQUE(chr, start, end));
 CREATE INDEX bed_name_idx ON bed(name);
 CREATE INDEX bed_tags_idx ON bed(tags);

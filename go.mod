@@ -1,4 +1,4 @@
-module github.com/antonybholmes/go-bed
+module github.com/antonybholmes/go-beds
 
 go 1.23
 
