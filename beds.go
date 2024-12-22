@@ -28,7 +28,7 @@ const BED_SQL = `SELECT chr, start, end, score, name, tags
 	ORDER BY chr, start`
 
 type BedFeature struct {
-	Location *dna.Location `json:"location"`
+	Location *dna.Location `json:"loc"`
 	Name     string        `json:"name,omitempty"`
 	Score    float64       `json:"score"`
 	Tags     string        `json:"tags,omitempty"`
@@ -321,7 +321,7 @@ func (bedsDb *BedsDB) Beds(platform string, genome string) ([]BedInfo, error) {
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) AllTracks() (*AllBeds, error) {
+func (bedsDb *BedsDB) AllBeds(genome string) (*AllBeds, error) {
 	platforms, err := bedsDb.Platforms()
 
 	if err != nil {
@@ -332,26 +332,22 @@ func (bedsDb *BedsDB) AllTracks() (*AllBeds, error) {
 
 	for _, platform := range platforms {
 
-		genomes, err := bedsDb.Genomes(platform)
+		log.Debug().Msgf("beds %s %s", platform, genome)
+
+		bedPlaform := BedPlaform{Name: platform, Genomes: make([]BedGenome, 0, 1)}
+
+		//for _, genome := range genomes {
+		beds, err := bedsDb.Beds(platform, genome)
 
 		if err != nil {
 			return nil, err
 		}
 
-		bedPlaform := BedPlaform{Name: platform, Genomes: make([]BedGenome, 0, len(genomes))}
+		bedGenome := BedGenome{Name: genome, Beds: beds}
 
-		for _, genome := range genomes {
-			beds, err := bedsDb.Beds(platform, genome)
+		bedPlaform.Genomes = append(bedPlaform.Genomes, bedGenome)
 
-			if err != nil {
-				return nil, err
-			}
-
-			bedGenome := BedGenome{Name: genome, Beds: beds}
-
-			bedPlaform.Genomes = append(bedPlaform.Genomes, bedGenome)
-
-		}
+		//}
 
 		ret.Platforms = append(ret.Platforms, bedPlaform)
 
@@ -360,7 +356,7 @@ func (bedsDb *BedsDB) AllTracks() (*AllBeds, error) {
 	return &ret, nil
 }
 
-func (tracksDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
+func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 
 	var platform string
 	var genome string
@@ -370,11 +366,15 @@ func (tracksDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var file string
 	//const FIND_TRACK_SQL = `SELECT platform, genome, name, reads, stat_mode, dir FROM tracks WHERE tracks.publicId = ?1`
 
-	err := tracksDb.db.QueryRow(FIND_BED_SQL, publicId).Scan(&id, &publicId, &platform, &genome, &name, &file)
+	err := bedsDb.db.QueryRow(FIND_BED_SQL, publicId).Scan(&id, &publicId, &platform, &genome, &name, &file)
 
 	if err != nil {
 		return nil, err
 	}
+
+	file = filepath.Join(bedsDb.dir, file)
+
+	log.Debug().Msgf("stupid %s", file)
 
 	return NewBedReader(file)
 }

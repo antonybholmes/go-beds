@@ -1,4 +1,4 @@
-package beddbcache
+package bedsdbcache
 
 import (
 	"sync"
@@ -33,8 +33,8 @@ func Genomes(platform string) ([]string, error) {
 	return instance.Genomes(platform)
 }
 
-func AllBeds() (*beds.AllBeds, error) {
-	return instance.AllTracks()
+func AllBeds(genome string) (*beds.AllBeds, error) {
+	return instance.AllBeds(genome)
 }
 
 func ReaderFromId(publicId string) (*beds.BedReader, error) {

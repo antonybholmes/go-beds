@@ -51,6 +51,6 @@ with open(os.path.join(dir, "beds.sql"), "w") as f:
     print("BEGIN TRANSACTION;", file=f)
     for row in data:
         values  = ', '.join([f"'{v}'" for v in row])
-        print(f"INSERT INTO beds (platform, genome, public_id, name, file) VALUES ({values});", file=f)
+        print(f"INSERT INTO beds (public_id, platform, genome, name, file) VALUES ({values});", file=f)
 
     print("COMMIT;", file=f)
