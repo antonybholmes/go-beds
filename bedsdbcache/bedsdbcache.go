@@ -25,16 +25,16 @@ func Dir() string {
 	return instance.Dir()
 }
 
-func Platforms() ([]string, error) {
-	return instance.Platforms()
+func Genomes() ([]string, error) {
+	return instance.Genomes()
 }
 
-func Genomes(platform string) ([]string, error) {
-	return instance.Genomes(platform)
+func Platforms(genome string) ([]string, error) {
+	return instance.Platforms(genome)
 }
 
-func AllBeds(genome string) (*beds.AllBeds, error) {
-	return instance.AllBeds(genome)
+func Search(genome string, query string) ([]beds.BedInfo, error) {
+	return instance.Search(genome, query)
 }
 
 func ReaderFromId(publicId string) (*beds.BedReader, error) {

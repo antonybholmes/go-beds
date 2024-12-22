@@ -28,17 +28,20 @@ genome = args.genome  # sys.argv[3]
 out  = args.out
 
 with open(out, "w") as f:
-    public_id = ':'.join([platform, genome, sample])
+    public_id = ':'.join([genome, platform, sample])
     print("BEGIN TRANSACTION;", file=f)
-    print(f"INSERT INTO info (public_id, platform, genome, name) VALUES ('{public_id}', '{platform}','{genome}','{sample}');", file=f)
+    print(f"INSERT INTO info (public_id, genome, platform, name) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}');", file=f)
     print("COMMIT;", file=f)
 
     print("BEGIN TRANSACTION;", file=f)
     with open(bed, "r") as fin:
         for line in fin:
             line = line.strip()
+
+            # skip bed headers
             if line.startswith("track"):
                 continue
+            
             tokens = line.split("\t")
             chr = tokens[0]
             start = tokens[1]

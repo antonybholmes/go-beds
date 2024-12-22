@@ -2,6 +2,7 @@ package beds
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 
 	"github.com/antonybholmes/go-dna"
@@ -16,11 +17,26 @@ import (
 // const N_BINS_OFFSET_BYTES = BIN_WIDTH_OFFSET_BYTES + 4
 // const BINS_OFFSET_BYTES = N_BINS_OFFSET_BYTES + 4
 
-const PLATFORMS_SQL = `SELECT DISTINCT platform FROM beds ORDER BY platform`
-const GENOMES_SQL = `SELECT DISTINCT genome FROM beds WHERE platform = ?1 ORDER BY genome`
-const BEDS_SQL = `SELECT id, public_id, platform, genome, name, file FROM beds WHERE platform = ?1 AND genome = ?2 ORDER BY name`
+const GENOMES_SQL = `SELECT DISTINCT genome FROM beds ORDER BY genome`
+const PLATFORMS_SQL = `SELECT DISTINCT platform FROM beds WHERE genome = ?1 ORDER BY platform`
 
-const FIND_BED_SQL = `SELECT id, public_id, platform, genome, name, file FROM beds WHERE public_id = ?1`
+const BEDS_SQL = `SELECT id, public_id, genome, platform, name, file 
+	FROM beds 
+	WHERE genome = ?1 AND platform = ?2 
+	ORDER BY name`
+
+const ALL_BEDS_SQL = `SELECT id, public_id, genome, platform, name, file 
+	FROM beds WHERE genome = ?1 
+	ORDER BY genome, platform, name`
+
+const SEARCH_BED_SQL = `SELECT id, public_id, genome, platform, name, file 
+	FROM beds 
+	WHERE genome = ?1 AND (public_id = ?1 OR platform = ?1 OR name LIKE ?2)
+	ORDER BY genome, platform, name`
+
+const BED_FROM_ID_SQL = `SELECT id, public_id, genome, platform, name, file 
+	FROM beds WHERE public_id = ?1
+	ORDER BY genome, platform, name`
 
 const BED_SQL = `SELECT chr, start, end, score, name, tags 
 	FROM bed
@@ -30,14 +46,8 @@ const BED_SQL = `SELECT chr, start, end, score, name, tags
 type BedFeature struct {
 	Location *dna.Location `json:"loc"`
 	Name     string        `json:"name,omitempty"`
-	Score    float64       `json:"score"`
 	Tags     string        `json:"tags,omitempty"`
-}
-
-type Track struct {
-	Platform string `json:"platform"`
-	Genome   string `json:"genome"`
-	Name     string `json:"name"`
+	Score    float64       `json:"score"`
 }
 
 type BedInfo struct {
@@ -48,27 +58,11 @@ type BedInfo struct {
 	File     string `json:"-"`
 }
 
-type BedGenome struct {
-	Name string    `json:"name"`
-	Beds []BedInfo `json:"beds"`
-}
-
-type BedPlaform struct {
-	Name    string      `json:"name"`
-	Genomes []BedGenome `json:"genomes"`
-}
-
-type AllBeds struct {
-	Name      string       `json:"name"`
-	Platforms []BedPlaform `json:"platforms"`
-}
-
 type BedReader struct {
 	file string
 }
 
 func NewBedReader(file string) (*BedReader, error) {
-
 	return &BedReader{file: file}, nil
 }
 
@@ -225,8 +219,11 @@ func (reader *BedReader) BedFeatures(location *dna.Location) ([]BedFeature, erro
 // }
 
 type BedsDB struct {
-	db  *sql.DB
-	dir string
+	db             *sql.DB
+	stmtAllBeds    *sql.Stmt
+	stmtSearchBeds *sql.Stmt
+	stmtBedFromId  *sql.Stmt
+	dir            string
 }
 
 func (tracksDb *BedsDB) Dir() string {
@@ -235,39 +232,17 @@ func (tracksDb *BedsDB) Dir() string {
 
 func NewBedsDB(dir string) *BedsDB {
 
-	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "beds.db")))
+	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "beds.db?mode=ro")))
 
-	return &BedsDB{dir: dir, db: db}
+	stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
+	stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
+	stmtBedFromId := sys.Must(db.Prepare(BED_FROM_ID_SQL))
+
+	return &BedsDB{dir: dir, db: db, stmtAllBeds: stmtAllBeds, stmtSearchBeds: stmtSearchBeds, stmtBedFromId: stmtBedFromId}
 }
 
-func (bedsDb *BedsDB) Platforms() ([]string, error) {
-	rows, err := bedsDb.db.Query(PLATFORMS_SQL)
-
-	if err != nil {
-		return nil, err //fmt.Errorf("there was an error with the database query")
-	}
-
-	ret := make([]string, 0, 10)
-
-	defer rows.Close()
-
-	var platform string
-
-	for rows.Next() {
-		err := rows.Scan(&platform)
-
-		if err != nil {
-			return nil, err //fmt.Errorf("there was an error with the database records")
-		}
-
-		ret = append(ret, platform)
-	}
-
-	return ret, nil
-}
-
-func (bedsDb *BedsDB) Genomes(platform string) ([]string, error) {
-	rows, err := bedsDb.db.Query(GENOMES_SQL, platform)
+func (bedsDb *BedsDB) Genomes() ([]string, error) {
+	rows, err := bedsDb.db.Query(GENOMES_SQL)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
@@ -292,16 +267,42 @@ func (bedsDb *BedsDB) Genomes(platform string) ([]string, error) {
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) Beds(platform string, genome string) ([]BedInfo, error) {
-	rows, err := bedsDb.db.Query(BEDS_SQL, platform, genome)
+func (bedsDb *BedsDB) Platforms(genome string) ([]string, error) {
+	rows, err := bedsDb.db.Query(PLATFORMS_SQL, genome)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	ret := make([]BedInfo, 0, 10)
+	defer rows.Close()
+
+	ret := make([]string, 0, 10)
+
+	var platform string
+
+	for rows.Next() {
+		err := rows.Scan(&platform)
+
+		if err != nil {
+			return nil, err //fmt.Errorf("there was an error with the database records")
+		}
+
+		ret = append(ret, platform)
+	}
+
+	return ret, nil
+}
+
+func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedInfo, error) {
+	rows, err := bedsDb.db.Query(BEDS_SQL, genome, platform)
+
+	if err != nil {
+		return nil, err //fmt.Errorf("there was an error with the database query")
+	}
 
 	defer rows.Close()
+
+	ret := make([]BedInfo, 0, 10)
 
 	var id uint
 	var publicId string
@@ -309,51 +310,53 @@ func (bedsDb *BedsDB) Beds(platform string, genome string) ([]BedInfo, error) {
 	var file string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &platform, &genome, &name, &file)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &name, &file)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, BedInfo{PublicId: publicId, Platform: platform, Genome: genome, Name: name, File: file})
+		ret = append(ret, BedInfo{PublicId: publicId, Genome: genome, Platform: platform, Name: name, File: file})
 	}
 
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) AllBeds(genome string) (*AllBeds, error) {
-	platforms, err := bedsDb.Platforms()
+func (bedsDb *BedsDB) Search(genome string, query string) ([]BedInfo, error) {
+	var rows *sql.Rows
+	var err error
+
+	if query != "" {
+		rows, err = bedsDb.stmtSearchBeds.Query(genome, query, fmt.Sprintf("%%%s%%", query))
+	} else {
+		rows, err = bedsDb.stmtAllBeds.Query(genome)
+	}
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	ret := AllBeds{Name: "Beds Database", Platforms: make([]BedPlaform, 0, len(platforms))}
+	defer rows.Close()
 
-	for _, platform := range platforms {
+	ret := make([]BedInfo, 0, 10)
 
-		log.Debug().Msgf("beds %s %s", platform, genome)
+	var id uint
+	var publicId string
+	var platform string
+	var name string
+	var file string
 
-		bedPlaform := BedPlaform{Name: platform, Genomes: make([]BedGenome, 0, 1)}
-
-		//for _, genome := range genomes {
-		beds, err := bedsDb.Beds(platform, genome)
+	for rows.Next() {
+		err := rows.Scan(&id, &publicId, &genome, &platform, &name, &file)
 
 		if err != nil {
-			return nil, err
+			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		bedGenome := BedGenome{Name: genome, Beds: beds}
-
-		bedPlaform.Genomes = append(bedPlaform.Genomes, bedGenome)
-
-		//}
-
-		ret.Platforms = append(ret.Platforms, bedPlaform)
-
+		ret = append(ret, BedInfo{PublicId: publicId, Genome: genome, Platform: platform, Name: name, File: file})
 	}
 
-	return &ret, nil
+	return ret, nil
 }
 
 func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
@@ -364,17 +367,15 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var id uint
 
 	var file string
-	//const FIND_TRACK_SQL = `SELECT platform, genome, name, reads, stat_mode, dir FROM tracks WHERE tracks.publicId = ?1`
+	//const FIND_TRACK_SQL = `SELECT genome, platform, name, reads, stat_mode, dir FROM tracks WHERE tracks.publicId = ?1`
 
-	err := bedsDb.db.QueryRow(FIND_BED_SQL, publicId).Scan(&id, &publicId, &platform, &genome, &name, &file)
+	err := bedsDb.stmtBedFromId.QueryRow(publicId).Scan(&id, &publicId, &platform, &genome, &name, &file)
 
 	if err != nil {
 		return nil, err
 	}
 
-	file = filepath.Join(bedsDb.dir, file)
-
-	log.Debug().Msgf("stupid %s", file)
+	file = filepath.Join(bedsDb.dir, fmt.Sprintf("%s?mode=ro", file))
 
 	return NewBedReader(file)
 }
