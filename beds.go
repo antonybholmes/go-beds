@@ -40,7 +40,7 @@ const BED_FROM_ID_SQL = `SELECT id, public_id, genome, platform, name, file
 
 const BED_SQL = `SELECT chr, start, end, score, name, tags 
 	FROM bed
- 	WHERE chr = ?1 AND ((start >= ?2 AND start <= ?3) OR (end >= ?2 AND end <= ?3) OR (start <= ?2 AND end >= ?3))
+ 	WHERE chr = ?1 AND (start <= ?3 AND end >= ?2)
 	ORDER BY chr, start`
 
 type BedFeature struct {
