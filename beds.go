@@ -367,7 +367,6 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var id uint
 
 	var file string
-	//const FIND_TRACK_SQL = `SELECT genome, platform, name, reads, stat_mode, dir FROM tracks WHERE tracks.publicId = ?1`
 
 	err := bedsDb.stmtBedFromId.QueryRow(publicId).Scan(&id, &publicId, &platform, &genome, &name, &file)
 
