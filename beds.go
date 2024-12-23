@@ -17,29 +17,29 @@ import (
 // const N_BINS_OFFSET_BYTES = BIN_WIDTH_OFFSET_BYTES + 4
 // const BINS_OFFSET_BYTES = N_BINS_OFFSET_BYTES + 4
 
-const GENOMES_SQL = `SELECT DISTINCT genome FROM beds ORDER BY genome`
-const PLATFORMS_SQL = `SELECT DISTINCT platform FROM beds WHERE genome = ?1 ORDER BY platform`
+const GENOMES_SQL = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
+const PLATFORMS_SQL = `SELECT DISTINCT platform FROM tracks WHERE genome = ?1 ORDER BY platform`
 
 const BEDS_SQL = `SELECT id, public_id, genome, platform, name, file 
-	FROM beds 
+	FROM tracks 
 	WHERE genome = ?1 AND platform = ?2 
 	ORDER BY name`
 
 const ALL_BEDS_SQL = `SELECT id, public_id, genome, platform, name, file 
-	FROM beds WHERE genome = ?1 
+	FROM tracks WHERE genome = ?1 
 	ORDER BY genome, platform, name`
 
 const SEARCH_BED_SQL = `SELECT id, public_id, genome, platform, name, file 
-	FROM beds 
+	FROM tracks 
 	WHERE genome = ?1 AND (public_id = ?1 OR platform = ?1 OR name LIKE ?2)
 	ORDER BY genome, platform, name`
 
 const BED_FROM_ID_SQL = `SELECT id, public_id, genome, platform, name, file 
-	FROM beds WHERE public_id = ?1
+	FROM tracks WHERE public_id = ?1
 	ORDER BY genome, platform, name`
 
 const BED_SQL = `SELECT chr, start, end, score, name, tags 
-	FROM bed
+	FROM track
  	WHERE chr = ?1 AND (start <= ?3 AND end >= ?2)
 	ORDER BY chr, start`
 
@@ -232,7 +232,7 @@ func (tracksDb *BedsDB) Dir() string {
 
 func NewBedsDB(dir string) *BedsDB {
 
-	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "beds.db?mode=ro")))
+	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "tracks.db?mode=ro")))
 
 	stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
 	stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))

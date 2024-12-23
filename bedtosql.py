@@ -49,8 +49,8 @@ with open(out, "w") as f:
             score = tokens[3] if len(tokens)>3 else ""
 
             if score != "":
-                print(f"INSERT INTO bed (chr, start, end, score) VALUES ('{chr}',{start},{end}, {score});", file=f)
+                print(f"INSERT INTO track (chr, start, end, score) VALUES ('{chr}',{start},{end}, {score});", file=f)
             else:
-                print(f"INSERT INTO bed (chr, start, end) VALUES ('{chr}',{start},{end});", file=f)
+                print(f"INSERT INTO track (chr, start, end) VALUES ('{chr}',{start},{end});", file=f)
 
     print("COMMIT;", file=f)

@@ -8,7 +8,7 @@ CREATE TABLE info (
 	platform TEXT NOT NULL,
 	name TEXT NOT NULL);
 
-CREATE TABLE bed (
+CREATE TABLE track (
 	id INTEGER PRIMARY KEY ASC,
 	chr TEXT NOT NULL,
 	start INTEGER NOT NULL,
@@ -17,5 +17,5 @@ CREATE TABLE bed (
 	name TEXT NOT NULL DEFAULT '',
 	tags TEXT NOT NULL DEFAULT '',
 	UNIQUE(chr, start, end));
-CREATE INDEX bed_name_idx ON bed(name);
-CREATE INDEX bed_tags_idx ON bed(tags);
+CREATE INDEX track_name_idx ON track(name);
+CREATE INDEX track_tags_idx ON track(tags);
