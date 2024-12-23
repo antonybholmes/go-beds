@@ -3,7 +3,7 @@ dir=data/modules/beds/ChIP-seq
 
 cat beds.txt | sed 1d | while read bed
 do
-    	sample=`basename ${bed} | sed -r 's/\..+//'` #Peaks_CB4_BCL6_RK040_vs_Input_RK063_p12
+    	sample=`basename ${bed} | sed -r 's/\..+//' | sed -r 's/Peaks_//'` #Peaks_CB4_BCL6_RK040_vs_Input_RK063_p12
     	out=${dir}/${genome}/${sample}.sql 
     	echo ${sample} ${bed}
 	#bed=Peaks_CB4_BCL6_RK040_vs_Input_RK063_p12.bed
