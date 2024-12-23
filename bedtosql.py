@@ -9,7 +9,7 @@ import sys
  
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--sample", help="sample name")
-parser.add_argument("-b", "--bed", help="ned file")
+parser.add_argument("-b", "--bed", help="bed file")
 parser.add_argument(
     "-p", "--platform", default="ChIP-seq", help="data plaform"
 )
