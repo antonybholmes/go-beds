@@ -1,3 +1,4 @@
+bed
 /ifs/scratch/cancer/Lab_RDF/ngs/chip_seq/data/human/rdf/hg19/rdf/katia/all_beds/Peaks_CB5_EP300_RK054_vs_Input_RK045_p5.bed
 /ifs/scratch/cancer/Lab_RDF/ngs/chip_seq/data/human/rdf/hg19/rdf/katia/all_beds/Peaks_CLL_2070_H3K27Ac_RK107_vs_Input_RK108_p15_md100.bed
 /ifs/scratch/cancer/Lab_RDF/ngs/chip_seq/data/human/rdf/hg19/rdf/katia/all_beds/Peaks_SUD102Bwt_HA_RK077_vs_Input_RK080_p15_md100.bed
