@@ -18,7 +18,7 @@ data = []
 
 for root, dirs, files in os.walk(dir):
     for filename in files:
-        if filename == 'beds.db':
+        if filename == 'tracks.db':
             continue
 
         if filename.endswith('.db'):
@@ -47,10 +47,10 @@ for root, dirs, files in os.walk(dir):
                
             conn.close()
 
-with open(os.path.join(dir, "beds.sql"), "w") as f:
+with open(os.path.join(dir, "tracks.sql"), "w") as f:
     print("BEGIN TRANSACTION;", file=f)
     for row in data:
         values  = ', '.join([f"'{v}'" for v in row])
-        print(f"INSERT INTO beds (public_id, genome, platform, name, file) VALUES ({values});", file=f)
+        print(f"INSERT INTO tracks (public_id, genome, platform, name, file) VALUES ({values});", file=f)
 
     print("COMMIT;", file=f)
