@@ -67,12 +67,13 @@ func NewBedReader(file string) (*BedReader, error) {
 }
 
 func (reader *BedReader) BedFeatures(location *dna.Location) ([]BedFeature, error) {
+	ret := make([]BedFeature, 0, 10)
 
 	db, err := sql.Open("sqlite3", reader.file)
 
 	if err != nil {
 		log.Debug().Msgf("bin sql err %s", err)
-		return nil, err
+		return ret, err
 	}
 
 	defer db.Close()
@@ -83,7 +84,7 @@ func (reader *BedReader) BedFeatures(location *dna.Location) ([]BedFeature, erro
 		location.End)
 
 	if err != nil {
-		return nil, err
+		return ret, err
 	}
 
 	var chr string
@@ -93,13 +94,11 @@ func (reader *BedReader) BedFeatures(location *dna.Location) ([]BedFeature, erro
 	var name string
 	var tags string
 
-	ret := make([]BedFeature, 0, 10)
-
 	for rows.Next() {
 		err := rows.Scan(&chr, &start, &end, &score, &name, &tags)
 
 		if err != nil {
-			return nil, err //fmt.Errorf("there was an error with the database records")
+			return ret, err //fmt.Errorf("there was an error with the database records")
 		}
 
 		ret = append(ret, BedFeature{Location: dna.NewLocation(chr, start, end), Score: score, Name: name, Tags: tags})
