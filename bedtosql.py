@@ -57,5 +57,5 @@ with open(out, "w") as f:
     print("COMMIT;", file=f)
 
     print("BEGIN TRANSACTION;", file=f)
-    print(f"INSERT INTO track (public_id, genome, platform, name, regions) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}', ${c});", file=f)
+    print(f"INSERT INTO track (public_id, genome, platform, name, regions) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}', {c});", file=f)
     print("COMMIT;", file=f)
