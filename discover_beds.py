@@ -34,7 +34,7 @@ for root, dirs, files in os.walk(dir):
             cursor = conn.cursor()
 
             # Execute a query to fetch data
-            cursor.execute('SELECT public_id, genome, platform, name FROM info')
+            cursor.execute('SELECT public_id, genome, platform, name, regions FROM track')
 
             # Fetch all results
             results = cursor.fetchall()
@@ -51,6 +51,6 @@ with open(os.path.join(dir, "tracks.sql"), "w") as f:
     print("BEGIN TRANSACTION;", file=f)
     for row in data:
         values  = ', '.join([f"'{v}'" for v in row])
-        print(f"INSERT INTO tracks (public_id, genome, platform, name, file) VALUES ({values});", file=f)
+        print(f"INSERT INTO tracks (public_id, genome, platform, name, regions, file) VALUES ({values});", file=f)
 
     print("COMMIT;", file=f)
