@@ -48,9 +48,9 @@ with open(out, "w") as f:
             score = tokens[3] if len(tokens)>3 else ""
 
             if score != "":
-                print(f"INSERT INTO regions (chr, start, end, score) VALUES ('{chr}',{start},{end}, {score});", file=f)
+                print(f"INSERT INTO regions (chr, start, end, score) VALUES ('{chr}',{start}, {end}, {score});", file=f)
             else:
-                print(f"INSERT INTO regions (chr, start, end) VALUES ('{chr}',{start},{end});", file=f)
+                print(f"INSERT INTO regions (chr, start, end) VALUES ('{chr}', {start}, {end});", file=f)
 
             c += 1
 
