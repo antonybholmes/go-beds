@@ -29,9 +29,8 @@ out  = args.out
 
 with open(out, "w") as f:
     public_id = ':'.join([genome, platform, sample])
-    print("BEGIN TRANSACTION;", file=f)
-    print(f"INSERT INTO info (public_id, genome, platform, name) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}');", file=f)
-    print("COMMIT;", file=f)
+    
+    c = 0
 
     print("BEGIN TRANSACTION;", file=f)
     with open(bed, "r") as fin:
@@ -49,8 +48,14 @@ with open(out, "w") as f:
             score = tokens[3] if len(tokens)>3 else ""
 
             if score != "":
-                print(f"INSERT INTO track (chr, start, end, score) VALUES ('{chr}',{start},{end}, {score});", file=f)
+                print(f"INSERT INTO regions (chr, start, end, score) VALUES ('{chr}',{start},{end}, {score});", file=f)
             else:
-                print(f"INSERT INTO track (chr, start, end) VALUES ('{chr}',{start},{end});", file=f)
+                print(f"INSERT INTO regions (chr, start, end) VALUES ('{chr}',{start},{end});", file=f)
 
+            c += 1
+
+    print("COMMIT;", file=f)
+
+    print("BEGIN TRANSACTION;", file=f)
+    print(f"INSERT INTO track (public_id, genome, platform, name, regions) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}', ${c});", file=f)
     print("COMMIT;", file=f)

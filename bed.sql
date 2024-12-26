@@ -1,14 +1,15 @@
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE info (
+CREATE TABLE track (
 	id INTEGER PRIMARY KEY ASC,
 	public_id TEXT_NOT_NULL,
 	genome TEXT NOT NULL,
 	platform TEXT NOT NULL,
-	name TEXT NOT NULL);
+	name TEXT NOT NULL,
+	regions INTEGER NOT NULL);
 
-CREATE TABLE track (
+CREATE TABLE regions (
 	id INTEGER PRIMARY KEY ASC,
 	chr TEXT NOT NULL,
 	start INTEGER NOT NULL,
@@ -17,5 +18,5 @@ CREATE TABLE track (
 	name TEXT NOT NULL DEFAULT '',
 	tags TEXT NOT NULL DEFAULT '',
 	UNIQUE(chr, start, end));
-CREATE INDEX track_name_idx ON track(name);
-CREATE INDEX track_tags_idx ON track(tags);
+CREATE INDEX regions_name_idx ON regions(name);
+CREATE INDEX regions_tags_idx ON regions(tags);
