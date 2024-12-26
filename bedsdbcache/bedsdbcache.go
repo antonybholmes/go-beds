@@ -33,7 +33,7 @@ func Platforms(genome string) ([]string, error) {
 	return instance.Platforms(genome)
 }
 
-func Search(genome string, query string) ([]beds.BedInfo, error) {
+func Search(genome string, query string) ([]beds.BedTrack, error) {
 	return instance.Search(genome, query)
 }
 
