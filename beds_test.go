@@ -21,7 +21,7 @@ func TestWithin(t *testing.T) {
 		t.Fatalf(`err %s`, err)
 	}
 
-	features, err := reader.BedRegions(location)
+	features, err := reader.OverlappingRegions(location)
 
 	if err != nil {
 		t.Fatalf(`err %s`, err)

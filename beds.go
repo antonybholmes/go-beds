@@ -8,7 +8,6 @@ import (
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-sys"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/rs/zerolog/log"
 )
 
 // const MAGIC_NUMBER_OFFSET_BYTES = 0
@@ -38,7 +37,7 @@ const BED_FROM_ID_SQL = `SELECT id, public_id, genome, platform, name, regions, 
 	FROM tracks WHERE public_id = ?1
 	ORDER BY genome, platform, name`
 
-const REGIONS_SQL = `SELECT chr, start, end, score, name, tags 
+const OVERLAPPING_REGIONS_SQL = `SELECT chr, start, end, score, name, tags 
 	FROM regions
  	WHERE chr = ?1 AND (start <= ?3 AND end >= ?2)
 	ORDER BY chr, start`
@@ -55,8 +54,8 @@ type BedTrack struct {
 	Platform string `json:"platform"`
 	Genome   string `json:"genome"`
 	Name     string `json:"name"`
-	Regions  uint   `json:"regions"`
 	File     string `json:"-"`
+	Regions  uint   `json:"regions"`
 }
 
 type BedReader struct {
@@ -67,19 +66,18 @@ func NewBedReader(file string) (*BedReader, error) {
 	return &BedReader{file: file}, nil
 }
 
-func (reader *BedReader) BedRegions(location *dna.Location) ([]BedRegion, error) {
-	ret := make([]BedRegion, 0, 10)
+func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegion, error) {
+	ret := make([]*BedRegion, 0, 10)
 
 	db, err := sql.Open("sqlite3", reader.file)
 
 	if err != nil {
-		log.Debug().Msgf("bin sql err %s", err)
 		return ret, err
 	}
 
 	defer db.Close()
 
-	rows, err := db.Query(REGIONS_SQL,
+	rows, err := db.Query(OVERLAPPING_REGIONS_SQL,
 		location.Chr,
 		location.Start,
 		location.End)
@@ -102,121 +100,12 @@ func (reader *BedReader) BedRegions(location *dna.Location) ([]BedRegion, error)
 			return ret, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, BedRegion{Location: dna.NewLocation(chr, start, end), Score: score, Name: name, Tags: tags})
+		ret = append(ret, &BedRegion{Location: dna.NewLocation(chr, start, end), Score: score, Name: name, Tags: tags})
 	}
 
 	return ret, nil
 
 }
-
-// func (reader *TracksReader) ReadsUint8(location *dna.Location) (*BinCounts, error) {
-// 	s := location.Start - 1
-// 	e := location.End - 1
-
-// 	bs := s / reader.BinWidth
-// 	be := e / reader.BinWidth
-// 	bl := be - bs + 1
-
-// 	file := reader.getPath(location)
-
-// 	f, err := os.Open(file)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer f.Close()
-
-// 	//var magic uint32
-// 	//binary.Read(f, binary.LittleEndian, &magic)
-
-// 	f.Seek(9, 0)
-
-// 	offset := BINS_OFFSET_BYTES + bs
-// 	log.Debug().Msgf("offset %d %d", offset, bs)
-
-// 	data := make([]uint8, bl)
-// 	f.Seek(int64(offset), 0)
-// 	binary.Read(f, binary.LittleEndian, &data)
-
-// 	reads := make([]uint32, bl)
-
-// 	for i, c := range data {
-// 		reads[i] = uint32(c)
-// 	}
-
-// 	return reader.Results(location, bs, reads)
-// }
-
-// func (reader *TracksReader) ReadsUint16(location *dna.Location) (*BinCounts, error) {
-// 	s := location.Start - 1
-// 	e := location.End - 1
-
-// 	bs := s / reader.BinWidth
-// 	be := e / reader.BinWidth
-// 	bl := be - bs + 1
-
-// 	file := reader.getPath(location)
-
-// 	f, err := os.Open(file)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer f.Close()
-
-// 	f.Seek(9, 0)
-
-// 	data := make([]uint16, bl)
-// 	f.Seek(int64(BINS_OFFSET_BYTES+bs*2), 0)
-// 	binary.Read(f, binary.LittleEndian, &data)
-
-// 	reads := make([]uint32, bl)
-
-// 	for i, c := range data {
-// 		reads[i] = uint32(c)
-// 	}
-
-// 	return reader.Results(location, bs, reads)
-// }
-
-// func (reader *TracksReader) ReadsUint32(location *dna.Location) (*BinCounts, error) {
-// 	s := location.Start - 1
-// 	e := location.End - 1
-
-// 	bs := s / reader.BinWidth
-// 	be := e / reader.BinWidth
-// 	bl := be - bs + 1
-
-// 	file := reader.getPath(location)
-
-// 	f, err := os.Open(file)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer f.Close()
-
-// 	f.Seek(9, 0)
-
-// 	reads := make([]uint32, bl)
-// 	f.Seek(int64(BINS_OFFSET_BYTES+bs*4), 0)
-// 	binary.Read(f, binary.LittleEndian, &reads)
-
-// 	return reader.Results(location, bs, reads)
-// }
-
-// func (reader *TracksReader) Results(location *dna.Location, bs uint, reads []uint32) (*BinCounts, error) {
-
-// 	return &BinCounts{
-// 		Location: location,
-// 		Start:    bs*reader.BinWidth + 1,
-// 		Reads:    reads,
-// 		ReadN:    reader.ReadN,
-// 	}, nil
-// }
 
 type BedsDB struct {
 	db             *sql.DB
@@ -238,7 +127,11 @@ func NewBedsDB(dir string) *BedsDB {
 	stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
 	stmtBedFromId := sys.Must(db.Prepare(BED_FROM_ID_SQL))
 
-	return &BedsDB{dir: dir, db: db, stmtAllBeds: stmtAllBeds, stmtSearchBeds: stmtSearchBeds, stmtBedFromId: stmtBedFromId}
+	return &BedsDB{dir: dir,
+		db:             db,
+		stmtAllBeds:    stmtAllBeds,
+		stmtSearchBeds: stmtSearchBeds,
+		stmtBedFromId:  stmtBedFromId}
 }
 
 func (bedsDb *BedsDB) Genomes() ([]string, error) {
@@ -316,7 +209,11 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, BedTrack{PublicId: publicId, Genome: genome, Platform: platform, Name: name, File: file})
+		ret = append(ret, BedTrack{PublicId: publicId,
+			Genome:   genome,
+			Platform: platform,
+			Name:     name,
+			File:     file})
 	}
 
 	return ret, nil
@@ -354,7 +251,12 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, BedTrack{PublicId: publicId, Genome: genome, Platform: platform, Name: name, Regions: regions, File: file})
+		ret = append(ret, BedTrack{PublicId: publicId,
+			Genome:   genome,
+			Platform: platform,
+			Name:     name,
+			Regions:  regions,
+			File:     file})
 	}
 
 	return ret, nil
