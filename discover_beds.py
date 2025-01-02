@@ -7,6 +7,7 @@ Encode read counts per base in 2 bytes
 import argparse
 import os
 import sqlite3
+from nanoid import generate
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--dir", help="dir to search")
@@ -24,9 +25,12 @@ for root, dirs, files in os.walk(dir):
         if filename.endswith('.db'):
             sample = os.path.splitext(filename)[0]
             relative_dir = root.replace(dir, '')[1:]
-            platform, genome = relative_dir.split("/")
+            genome, platform, dataset = relative_dir.split("/")
             #filepath = os.path.join(root, filename)
             print(root, filename, relative_dir, platform, genome, sample)
+
+            dataset = dataset.replace('_', ' ')
+
 
             conn = sqlite3.connect( os.path.join(root, filename))
 
@@ -34,7 +38,7 @@ for root, dirs, files in os.walk(dir):
             cursor = conn.cursor()
 
             # Execute a query to fetch data
-            cursor.execute('SELECT public_id, genome, platform, name, regions FROM track')
+            cursor.execute('SELECT genome, platform, name, regions FROM track')
 
             # Fetch all results
             results = cursor.fetchall()
@@ -42,6 +46,8 @@ for root, dirs, files in os.walk(dir):
             # Print the results
             for row in results:
                 row = list(row)
+                row.append(generate("0123456789abcdefghijklmnopqrstuvwxyz", 12))
+                row.append(dataset)
                 row.append(os.path.join(relative_dir, filename))
                 data.append(row)
                
@@ -51,6 +57,6 @@ with open(os.path.join(dir, "tracks.sql"), "w") as f:
     print("BEGIN TRANSACTION;", file=f)
     for row in data:
         values  = ', '.join([f"'{v}'" for v in row])
-        print(f"INSERT INTO tracks (public_id, genome, platform, name, regions, file) VALUES ({values});", file=f)
+        print(f"INSERT INTO tracks (genome, platform, name, regions, uuid, dataset, file) VALUES ({values});", file=f)
 
     print("COMMIT;", file=f)
