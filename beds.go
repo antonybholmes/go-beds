@@ -8,6 +8,7 @@ import (
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-sys"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog/log"
 )
 
 // const MAGIC_NUMBER_OFFSET_BYTES = 0
@@ -71,6 +72,8 @@ func NewBedReader(file string) (*BedReader, error) {
 
 func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegion, error) {
 	ret := make([]*BedRegion, 0, 10)
+
+	log.Debug().Msgf("hmm %s", reader.file)
 
 	db, err := sql.Open("sqlite3", reader.file)
 
@@ -290,6 +293,7 @@ func (bedsDb *BedsDB) ReaderFromId(uuid string) (*BedReader, error) {
 		&file)
 
 	if err != nil {
+		log.Debug().Msgf("asdjisjsa %s %s", err, uuid)
 		return nil, err
 	}
 

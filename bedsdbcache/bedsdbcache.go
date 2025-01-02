@@ -37,6 +37,6 @@ func Search(genome string, query string) ([]beds.BedTrack, error) {
 	return instance.Search(genome, query)
 }
 
-func ReaderFromId(publicId string) (*beds.BedReader, error) {
-	return instance.ReaderFromId(publicId)
+func ReaderFromId(uuid string) (*beds.BedReader, error) {
+	return instance.ReaderFromId(uuid)
 }
