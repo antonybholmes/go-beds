@@ -53,7 +53,7 @@ type BedRegion struct {
 }
 
 type BedTrack struct {
-	Uuid     string `json:"uuid"`
+	Uuid     string `json:"bedId"`
 	Platform string `json:"platform"`
 	Genome   string `json:"genome"`
 	Dataset  string `json:"dataset"`
@@ -73,7 +73,7 @@ func NewBedReader(file string) (*BedReader, error) {
 func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegion, error) {
 	ret := make([]*BedRegion, 0, 10)
 
-	log.Debug().Msgf("hmm %s", reader.file)
+	//log.Debug().Msgf("hmm %s", reader.file)
 
 	db, err := sql.Open("sqlite3", reader.file)
 
