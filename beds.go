@@ -291,8 +291,8 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var name string
 	var regions uint
 	var id uint
-
 	var file string
+	var tags string
 
 	err := bedsDb.stmtBedFromId.QueryRow(publicId).Scan(&id,
 		&publicId,
@@ -301,10 +301,10 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 		&dataset,
 		&name,
 		&regions,
-		&file)
+		&file,
+		&tags)
 
 	if err != nil {
-
 		return nil, err
 	}
 
