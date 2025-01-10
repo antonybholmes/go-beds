@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-sys"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/rs/zerolog/log"
 )
 
 // const MAGIC_NUMBER_OFFSET_BYTES = 0
@@ -20,7 +20,7 @@ import (
 const GENOMES_SQL = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
 const PLATFORMS_SQL = `SELECT DISTINCT platform FROM tracks WHERE genome = ?1 ORDER BY platform`
 
-const SELECT_BED_SQL = `SELECT id, uuid, genome, platform, dataset, name, regions, file `
+const SELECT_BED_SQL = `SELECT id, public_id, genome, platform, dataset, name, regions, file, tags `
 
 const BEDS_SQL = SELECT_BED_SQL +
 	`FROM tracks 
@@ -33,11 +33,11 @@ const ALL_BEDS_SQL = SELECT_BED_SQL +
 
 const SEARCH_BED_SQL = SELECT_BED_SQL +
 	`FROM tracks 
-	WHERE genome = ?1 AND (uuid = ?1 OR platform = ?1 OR name LIKE ?2)
+	WHERE genome = ?1 AND (public_id = ?1 OR platform = ?1 OR name LIKE ?2)
 	ORDER BY genome, platform, name`
 
 const BED_FROM_ID_SQL = SELECT_BED_SQL +
-	`FROM tracks WHERE uuid = ?1
+	`FROM tracks WHERE public_id = ?1
 	ORDER BY genome, platform, name`
 
 const OVERLAPPING_REGIONS_SQL = `SELECT chr, start, end, score, name, tags 
@@ -53,13 +53,14 @@ type BedRegion struct {
 }
 
 type BedTrack struct {
-	Uuid     string `json:"bedId"`
-	Platform string `json:"platform"`
-	Genome   string `json:"genome"`
-	Dataset  string `json:"dataset"`
-	Name     string `json:"name"`
-	File     string `json:"-"`
-	Regions  uint   `json:"regions"`
+	PublicId string   `json:"bedId"`
+	Platform string   `json:"platform"`
+	Genome   string   `json:"genome"`
+	Dataset  string   `json:"dataset"`
+	Name     string   `json:"name"`
+	File     string   `json:"-"`
+	Regions  uint     `json:"regions"`
+	Tags     []string `json:"tags"`
 }
 
 type BedReader struct {
@@ -126,7 +127,6 @@ func (tracksDb *BedsDB) Dir() string {
 }
 
 func NewBedsDB(dir string) *BedsDB {
-
 	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "tracks.db?mode=ro")))
 
 	stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
@@ -204,24 +204,26 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 	ret := make([]BedTrack, 0, 10)
 
 	var id uint
-	var uuid string
+	var publicId string
 	var dataset string
 	var name string
 	var file string
+	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &uuid, &genome, &platform, &dataset, &name, &file)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &file, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, BedTrack{Uuid: uuid,
+		ret = append(ret, BedTrack{PublicId: publicId,
 			Genome:   genome,
 			Platform: platform,
 			Dataset:  dataset,
 			Name:     name,
-			File:     file})
+			File:     file,
+			Tags:     strings.Split(tags, ",")})
 	}
 
 	return ret, nil
@@ -246,33 +248,35 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 	ret := make([]BedTrack, 0, 10)
 
 	var id uint
-	var uuid string
+	var publicId string
 	var platform string
 	var dataset string
 	var name string
 	var regions uint
 	var file string
+	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &uuid, &genome, &platform, &dataset, &name, &regions, &file)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &regions, &file, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, BedTrack{Uuid: uuid,
+		ret = append(ret, BedTrack{PublicId: publicId,
 			Genome:   genome,
 			Platform: platform,
 			Dataset:  dataset,
 			Name:     name,
 			Regions:  regions,
-			File:     file})
+			File:     file,
+			Tags:     strings.Split(tags, ",")})
 	}
 
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) ReaderFromId(uuid string) (*BedReader, error) {
+func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 
 	var platform string
 	var genome string
@@ -283,8 +287,8 @@ func (bedsDb *BedsDB) ReaderFromId(uuid string) (*BedReader, error) {
 
 	var file string
 
-	err := bedsDb.stmtBedFromId.QueryRow(uuid).Scan(&id,
-		&uuid,
+	err := bedsDb.stmtBedFromId.QueryRow(publicId).Scan(&id,
+		&publicId,
 		&genome,
 		&platform,
 		&dataset,
@@ -293,7 +297,7 @@ func (bedsDb *BedsDB) ReaderFromId(uuid string) (*BedReader, error) {
 		&file)
 
 	if err != nil {
-		log.Debug().Msgf("asdjisjsa %s %s", err, uuid)
+
 		return nil, err
 	}
 
