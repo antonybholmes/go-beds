@@ -60,8 +60,8 @@ type BedTrack struct {
 	Dataset  string   `json:"dataset"`
 	Name     string   `json:"name"`
 	File     string   `json:"-"`
-	Regions  uint     `json:"regions"`
 	Tags     []string `json:"tags"`
+	Regions  uint     `json:"regions"`
 }
 
 type BedReader struct {
