@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/antonybholmes/go-dna"
@@ -217,13 +218,16 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
+		tagList := strings.Split(tags, ",")
+		sort.Strings(tagList)
+
 		ret = append(ret, BedTrack{PublicId: publicId,
 			Genome:   genome,
 			Platform: platform,
 			Dataset:  dataset,
 			Name:     name,
 			File:     file,
-			Tags:     strings.Split(tags, ",")})
+			Tags:     tagList})
 	}
 
 	return ret, nil
@@ -263,6 +267,9 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
+		tagList := strings.Split(tags, ",")
+		sort.Strings(tagList)
+
 		ret = append(ret, BedTrack{PublicId: publicId,
 			Genome:   genome,
 			Platform: platform,
@@ -270,7 +277,7 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 			Name:     name,
 			Regions:  regions,
 			File:     file,
-			Tags:     strings.Split(tags, ",")})
+			Tags:     tagList})
 	}
 
 	return ret, nil
