@@ -6,6 +6,8 @@ Encode read counts per base in 2 bytes
 """
 import argparse
 import sys
+
+from nanoid import generate
  
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--sample", help="sample name")
@@ -28,7 +30,7 @@ genome = args.genome  # sys.argv[3]
 out  = args.out
 
 with open(out, "w") as f:
-    public_id = ':'.join([genome, platform, sample])
+    public_id = generate("0123456789abcdefghijklmnopqrstuvwxyz", 12) #':'.join([genome, platform, sample])
     
     c = 0
 
