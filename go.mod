@@ -1,6 +1,6 @@
 module github.com/antonybholmes/go-beds
 
-go 1.23
+go 1.24
 
 replace github.com/antonybholmes/go-dna => ../go-dna
 
@@ -9,13 +9,13 @@ replace github.com/antonybholmes/go-sys => ../go-sys
 replace github.com/antonybholmes/go-basemath => ../go-basemath
 
 require (
-	github.com/antonybholmes/go-sys v0.0.0-20250205171520-3b66c82ca1f3
+	github.com/antonybholmes/go-sys v0.0.0-20250210230713-d713d40beb1a
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/rs/zerolog v1.33.0
 )
 
 require (
-	github.com/antonybholmes/go-basemath v0.0.0-20250205152412-840349f1ca5c // indirect
+	github.com/antonybholmes/go-basemath v0.0.0-20250210230743-9da55b7ac3fd // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
@@ -29,7 +29,7 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-dna v0.0.0-20250205171514-82dd7b47fd97
+	github.com/antonybholmes/go-dna v0.0.0-20250210230739-b3791e252d47
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	golang.org/x/sys v0.30.0 // indirect
