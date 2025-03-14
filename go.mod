@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-basemath v0.0.0-20250303144104-ebe30afaed11 // indirect
+	github.com/antonybholmes/go-basemath v0.0.0-20250307171544-f522e91d1448 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/matoous/go-nanoid/v2 v2.1.0 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
