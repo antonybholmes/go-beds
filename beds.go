@@ -54,7 +54,7 @@ type BedRegion struct {
 }
 
 type BedTrack struct {
-	PublicId string   `json:"bedId"`
+	PublicId string   `json:"publicId"`
 	Platform string   `json:"platform"`
 	Genome   string   `json:"genome"`
 	Dataset  string   `json:"dataset"`
