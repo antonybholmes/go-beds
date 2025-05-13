@@ -54,14 +54,15 @@ type BedRegion struct {
 }
 
 type BedTrack struct {
-	PublicId string   `json:"publicId"`
-	Platform string   `json:"platform"`
-	Genome   string   `json:"genome"`
-	Dataset  string   `json:"dataset"`
-	Name     string   `json:"name"`
-	File     string   `json:"-"`
-	Tags     []string `json:"tags"`
-	Regions  uint     `json:"regions"`
+	PublicId  string   `json:"publicId"`
+	Platform  string   `json:"platform"`
+	Genome    string   `json:"genome"`
+	Dataset   string   `json:"dataset"`
+	Name      string   `json:"name"`
+	TrackType string   `json:"trackType"`
+	File      string   `json:"-"`
+	Tags      []string `json:"tags"`
+	Regions   uint     `json:"regions"`
 }
 
 type BedReader struct {
@@ -222,12 +223,13 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 		sort.Strings(tagList)
 
 		ret = append(ret, BedTrack{PublicId: publicId,
-			Genome:   genome,
-			Platform: platform,
-			Dataset:  dataset,
-			Name:     name,
-			File:     file,
-			Tags:     tagList})
+			Genome:    genome,
+			Platform:  platform,
+			Dataset:   dataset,
+			Name:      name,
+			TrackType: "BED",
+			File:      file,
+			Tags:      tagList})
 	}
 
 	return ret, nil
@@ -271,13 +273,14 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 		sort.Strings(tagList)
 
 		ret = append(ret, BedTrack{PublicId: publicId,
-			Genome:   genome,
-			Platform: platform,
-			Dataset:  dataset,
-			Name:     name,
-			Regions:  regions,
-			File:     file,
-			Tags:     tagList})
+			Genome:    genome,
+			Platform:  platform,
+			Dataset:   dataset,
+			Name:      name,
+			Regions:   regions,
+			TrackType: "BED",
+			File:      file,
+			Tags:      tagList})
 	}
 
 	return ret, nil
