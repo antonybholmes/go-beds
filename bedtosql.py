@@ -8,17 +8,15 @@ import argparse
 import sys
 
 from nanoid import generate
- 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--sample", help="sample name")
 parser.add_argument("-b", "--bed", help="bed file")
-parser.add_argument(
-    "-p", "--platform", default="ChIP-seq", help="data plaform"
-)
+parser.add_argument("-p", "--platform", default="ChIP-seq", help="data plaform")
 parser.add_argument(
     "-g", "--genome", default="hg19", help="genome sample was aligned to"
 )
- 
+
 parser.add_argument("-o", "--out", help="output file")
 args = parser.parse_args()
 
@@ -26,12 +24,14 @@ sample = args.sample  # sys.argv[1]
 bed = args.bed  # sys.argv[2]
 platform = args.platform
 genome = args.genome  # sys.argv[3]
- 
-out  = args.out
+
+out = args.out
 
 with open(out, "w") as f:
-    public_id = generate("0123456789abcdefghijklmnopqrstuvwxyz", 12) #':'.join([genome, platform, sample])
-    
+    public_id = generate(
+        "0123456789abcdefghijklmnopqrstuvwxyz", 12
+    )  #':'.join([genome, platform, sample])
+
     c = 0
 
     print("BEGIN TRANSACTION;", file=f)
@@ -42,22 +42,31 @@ with open(out, "w") as f:
             # skip bed headers
             if line.startswith("track"):
                 continue
-            
+
             tokens = line.split("\t")
             chr = tokens[0]
             start = tokens[1]
             end = tokens[2]
-            score = tokens[3] if len(tokens)>3 else ""
+            score = tokens[3] if len(tokens) > 3 else ""
 
             if score != "":
-                print(f"INSERT INTO regions (chr, start, end, score) VALUES ('{chr}',{start}, {end}, {score});", file=f)
+                print(
+                    f"INSERT INTO regions (chr, start, end, score) VALUES ('{chr}',{start}, {end}, {score});",
+                    file=f,
+                )
             else:
-                print(f"INSERT INTO regions (chr, start, end) VALUES ('{chr}', {start}, {end});", file=f)
+                print(
+                    f"INSERT INTO regions (chr, start, end) VALUES ('{chr}', {start}, {end});",
+                    file=f,
+                )
 
             c += 1
 
     print("COMMIT;", file=f)
 
     print("BEGIN TRANSACTION;", file=f)
-    print(f"INSERT INTO track (public_id, genome, platform, name, regions) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}', {c});", file=f)
+    print(
+        f"INSERT INTO track (public_id, genome, platform, name, track_type, regions) VALUES ('{public_id}', '{genome}', '{platform}', '{sample}', 'BED', {c});",
+        file=f,
+    )
     print("COMMIT;", file=f)

@@ -8,8 +8,9 @@ CREATE TABLE tracks (
 	platform TEXT NOT NULL,
 	dataset TEXT NOT NULL,
 	name TEXT NOT NULL,
-	regions INTEGER NOT NULL,
-	file TEXT NOT NULL,
+	track_type TEXT NOT NULL,
+	regions INTEGER NOT NULL DEFAULT -1,
+	url TEXT NOT NULL,
 	tags TEXT NOT NULL,
 	UNIQUE(genome, platform, dataset, name));
 CREATE INDEX tracks_public_id_idx ON tracks(public_id);

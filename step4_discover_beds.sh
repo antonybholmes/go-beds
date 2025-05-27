@@ -1,7 +1,8 @@
 dir=data/modules/beds
 
 python discover_beds.py --dir=${dir} 
-
+cat ${dir}/ChIP-seq/bigbed.sql >> ${dir}/tracks.sql
+ 
  
 rm ${dir}/tracks.db
 cat tracks.sql | sqlite3 ${dir}/tracks.db

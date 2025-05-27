@@ -21,7 +21,7 @@ import (
 const GENOMES_SQL = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
 const PLATFORMS_SQL = `SELECT DISTINCT platform FROM tracks WHERE genome = ?1 ORDER BY platform`
 
-const SELECT_BED_SQL = `SELECT id, public_id, genome, platform, dataset, name, regions, file, tags `
+const SELECT_BED_SQL = `SELECT id, public_id, genome, platform, dataset, name, track_type, regions, file, tags `
 
 const BEDS_SQL = SELECT_BED_SQL +
 	`FROM tracks 
@@ -209,11 +209,12 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 	var publicId string
 	var dataset string
 	var name string
+	var trackType string
 	var file string
 	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &file, &tags)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &file, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
@@ -227,7 +228,7 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 			Platform:  platform,
 			Dataset:   dataset,
 			Name:      name,
-			TrackType: "BED",
+			TrackType: trackType,
 			File:      file,
 			Tags:      tagList})
 	}
@@ -258,12 +259,13 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 	var platform string
 	var dataset string
 	var name string
+	var trackType string
 	var regions uint
 	var file string
 	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &regions, &file, &tags)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &regions, &file, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
@@ -278,7 +280,7 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 			Dataset:   dataset,
 			Name:      name,
 			Regions:   regions,
-			TrackType: "BED",
+			TrackType: trackType,
 			File:      file,
 			Tags:      tagList})
 	}

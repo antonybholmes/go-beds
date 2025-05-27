@@ -7,7 +7,10 @@ CREATE TABLE track (
 	genome TEXT NOT NULL,
 	platform TEXT NOT NULL,
 	name TEXT NOT NULL,
-	regions INTEGER NOT NULL);
+	description TEXT NOT NULL DEFAULT '',
+	track_type TEXT NOT NULL,
+	regions INTEGER NOT NULL DEFAULT -1,
+	tags TEXT NOT NULL DEFAULT '');
 
 CREATE TABLE regions (
 	id INTEGER PRIMARY KEY ASC,
