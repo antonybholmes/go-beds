@@ -9,7 +9,7 @@ CREATE TABLE tracks (
 	dataset TEXT NOT NULL,
 	name TEXT NOT NULL,
 	track_type TEXT NOT NULL,
-	regions INTEGER NOT NULL DEFAULT -1,
+	regions INTEGER NOT NULL DEFAULT 0,
 	url TEXT NOT NULL,
 	tags TEXT NOT NULL,
 	UNIQUE(genome, platform, dataset, name));

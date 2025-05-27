@@ -9,7 +9,7 @@ CREATE TABLE track (
 	name TEXT NOT NULL,
 	description TEXT NOT NULL DEFAULT '',
 	track_type TEXT NOT NULL,
-	regions INTEGER NOT NULL DEFAULT -1,
+	regions INTEGER NOT NULL DEFAULT 0,
 	tags TEXT NOT NULL DEFAULT '');
 
 CREATE TABLE regions (

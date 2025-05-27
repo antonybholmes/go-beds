@@ -21,7 +21,7 @@ import (
 const GENOMES_SQL = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
 const PLATFORMS_SQL = `SELECT DISTINCT platform FROM tracks WHERE genome = ?1 ORDER BY platform`
 
-const SELECT_BED_SQL = `SELECT id, public_id, genome, platform, dataset, name, track_type, regions, file, tags `
+const SELECT_BED_SQL = `SELECT id, public_id, genome, platform, dataset, name, track_type, regions, url, tags `
 
 const BEDS_SQL = SELECT_BED_SQL +
 	`FROM tracks 
@@ -60,7 +60,7 @@ type BedTrack struct {
 	Dataset   string   `json:"dataset"`
 	Name      string   `json:"name"`
 	TrackType string   `json:"trackType"`
-	File      string   `json:"-"`
+	Url       string   `json:"url"`
 	Tags      []string `json:"tags"`
 	Regions   uint     `json:"regions"`
 }
@@ -210,11 +210,11 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 	var dataset string
 	var name string
 	var trackType string
-	var file string
+	var url string
 	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &file, &tags)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &url, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
@@ -223,14 +223,20 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 		tagList := strings.Split(tags, ",")
 		sort.Strings(tagList)
 
-		ret = append(ret, BedTrack{PublicId: publicId,
+		track := BedTrack{PublicId: publicId,
 			Genome:    genome,
 			Platform:  platform,
 			Dataset:   dataset,
 			Name:      name,
 			TrackType: trackType,
-			File:      file,
-			Tags:      tagList})
+			Url:       url,
+			Tags:      tagList}
+
+		if track.TrackType == "Remote BigBed" {
+			track.Url = url
+		}
+
+		ret = append(ret, track)
 	}
 
 	return ret, nil
@@ -261,11 +267,11 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 	var name string
 	var trackType string
 	var regions uint
-	var file string
+	var url string
 	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &regions, &file, &tags)
+		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &regions, &url, &tags)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
@@ -274,15 +280,20 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 		tagList := strings.Split(tags, ",")
 		sort.Strings(tagList)
 
-		ret = append(ret, BedTrack{PublicId: publicId,
+		track := BedTrack{PublicId: publicId,
 			Genome:    genome,
 			Platform:  platform,
 			Dataset:   dataset,
 			Name:      name,
 			Regions:   regions,
 			TrackType: trackType,
-			File:      file,
-			Tags:      tagList})
+			Tags:      tagList}
+
+		if track.TrackType == "Remote BigBed" {
+			track.Url = url
+		}
+
+		ret = append(ret, track)
 	}
 
 	return ret, nil
@@ -296,7 +307,7 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var name string
 	var regions uint
 	var id uint
-	var file string
+	var url string
 	var tags string
 
 	err := bedsDb.stmtBedFromId.QueryRow(publicId).Scan(&id,
@@ -306,14 +317,14 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 		&dataset,
 		&name,
 		&regions,
-		&file,
+		&url,
 		&tags)
 
 	if err != nil {
 		return nil, err
 	}
 
-	file = filepath.Join(bedsDb.dir, fmt.Sprintf("%s?mode=ro", file))
+	url = filepath.Join(bedsDb.dir, fmt.Sprintf("%s?mode=ro", url))
 
-	return NewBedReader(file)
+	return NewBedReader(url)
 }
