@@ -117,11 +117,11 @@ func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegio
 }
 
 type BedsDB struct {
-	db             *sql.DB
-	stmtAllBeds    *sql.Stmt
-	stmtSearchBeds *sql.Stmt
-	stmtBedFromId  *sql.Stmt
-	dir            string
+	db *sql.DB
+	//stmtAllBeds    *sql.Stmt
+	//stmtSearchBeds *sql.Stmt
+	//stmtBedFromId  *sql.Stmt
+	dir string
 }
 
 func (tracksDb *BedsDB) Dir() string {
@@ -131,15 +131,16 @@ func (tracksDb *BedsDB) Dir() string {
 func NewBedsDB(dir string) *BedsDB {
 	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "tracks.db?mode=ro")))
 
-	stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
-	stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
-	stmtBedFromId := sys.Must(db.Prepare(BED_FROM_ID_SQL))
+	//stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
+	//stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
+	//stmtBedFromId := sys.Must(db.Prepare(BED_FROM_ID_SQL))
 
 	return &BedsDB{dir: dir,
-		db:             db,
-		stmtAllBeds:    stmtAllBeds,
-		stmtSearchBeds: stmtSearchBeds,
-		stmtBedFromId:  stmtBedFromId}
+		db: db,
+		//stmtAllBeds:    stmtAllBeds,
+		//stmtSearchBeds: stmtSearchBeds,
+		//stmtBedFromId:  stmtBedFromId
+	}
 }
 
 func (bedsDb *BedsDB) Genomes() ([]string, error) {
@@ -247,9 +248,9 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 	var err error
 
 	if query != "" {
-		rows, err = bedsDb.stmtSearchBeds.Query(genome, query, fmt.Sprintf("%%%s%%", query))
+		rows, err = bedsDb.db.Query(SEARCH_BED_SQL, genome, query, fmt.Sprintf("%%%s%%", query))
 	} else {
-		rows, err = bedsDb.stmtAllBeds.Query(genome)
+		rows, err = bedsDb.db.Query(ALL_BEDS_SQL, genome)
 	}
 
 	if err != nil {
@@ -310,7 +311,7 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var url string
 	var tags string
 
-	err := bedsDb.stmtBedFromId.QueryRow(publicId).Scan(&id,
+	err := bedsDb.db.QueryRow(BED_FROM_ID_SQL, publicId).Scan(&id,
 		&publicId,
 		&genome,
 		&platform,
