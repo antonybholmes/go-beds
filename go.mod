@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-basemath v0.0.0-20250606171809-0a0e36ed782e // indirect
+	github.com/antonybholmes/go-basemath v0.0.0-20250624151228-caf01bd5c078 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/matoous/go-nanoid/v2 v2.1.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
@@ -33,7 +33,7 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-dna v0.0.0-20250616000837-e646307db773
+	github.com/antonybholmes/go-dna v0.0.0-20250624151218-bda84c67e34d
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	golang.org/x/sys v0.33.0 // indirect
