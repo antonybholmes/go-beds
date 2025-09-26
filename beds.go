@@ -306,6 +306,7 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var genome string
 	var dataset string
 	var name string
+	var trackType string
 	var regions uint
 	var id uint
 	var url string
@@ -317,6 +318,7 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 		&platform,
 		&dataset,
 		&name,
+		&trackType,
 		&regions,
 		&url,
 		&tags)
