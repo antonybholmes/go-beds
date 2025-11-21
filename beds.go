@@ -62,7 +62,7 @@ type BedTrack struct {
 	TrackType string   `json:"trackType"`
 	Url       string   `json:"url"`
 	Tags      []string `json:"tags"`
-	Regions   uint     `json:"regions"`
+	Regions   int      `json:"regions"`
 }
 
 type BedReader struct {
@@ -96,8 +96,8 @@ func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegio
 	}
 
 	var chr string
-	var start uint
-	var end uint
+	var start int
+	var end int
 	var score float64
 	var name string
 	var tags string
@@ -109,7 +109,13 @@ func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegio
 			return ret, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, &BedRegion{Location: dna.NewLocation(chr, start, end), Score: score, Name: name, Tags: tags})
+		location, err := dna.NewLocation(chr, start, end)
+
+		if err != nil {
+			return ret, err
+		}
+
+		ret = append(ret, &BedRegion{Location: location, Score: score, Name: name, Tags: tags})
 	}
 
 	return ret, nil
@@ -206,7 +212,7 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 
 	ret := make([]BedTrack, 0, 10)
 
-	var id uint
+	var id int
 	var publicId string
 	var dataset string
 	var name string
@@ -261,13 +267,13 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 
 	ret := make([]BedTrack, 0, 10)
 
-	var id uint
+	var id int
 	var publicId string
 	var platform string
 	var dataset string
 	var name string
 	var trackType string
-	var regions uint
+	var regions int
 	var url string
 	var tags string
 
@@ -307,8 +313,8 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var dataset string
 	var name string
 	var trackType string
-	var regions uint
-	var id uint
+	var regions int
+	var id int
 	var url string
 	var tags string
 
