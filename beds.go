@@ -18,56 +18,60 @@ import (
 // const N_BINS_OFFSET_BYTES = BIN_WIDTH_OFFSET_BYTES + 4
 // const BINS_OFFSET_BYTES = N_BINS_OFFSET_BYTES + 4
 
-const GENOMES_SQL = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
-const PLATFORMS_SQL = `SELECT DISTINCT platform FROM tracks WHERE genome = ?1 ORDER BY platform`
+type (
+	BedRegion struct {
+		Location *dna.Location `json:"loc"`
+		Name     string        `json:"name,omitempty"`
+		Tags     string        `json:"tags,omitempty"`
+		Score    float64       `json:"score"`
+	}
 
-const SELECT_BED_SQL = `SELECT id, public_id, genome, platform, dataset, name, track_type, regions, url, tags `
+	BedTrack struct {
+		PublicId  string   `json:"publicId"`
+		Platform  string   `json:"platform"`
+		Genome    string   `json:"genome"`
+		Dataset   string   `json:"dataset"`
+		Name      string   `json:"name"`
+		TrackType string   `json:"trackType"`
+		Url       string   `json:"url"`
+		Tags      []string `json:"tags"`
+		Regions   int      `json:"regions"`
+	}
 
-const BEDS_SQL = SELECT_BED_SQL +
-	`FROM tracks 
-	WHERE genome = ?1 AND platform = ?2 
-	ORDER BY name`
+	BedReader struct {
+		file string
+	}
+)
 
-const ALL_BEDS_SQL = SELECT_BED_SQL +
-	`FROM tracks WHERE genome = ?1 
-	ORDER BY genome, platform, name`
+const (
+	GenomesSql   = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
+	PlatformsSql = `SELECT DISTINCT platform FROM tracks WHERE genome = :genome ORDER BY platform`
 
-const SEARCH_BED_SQL = SELECT_BED_SQL +
-	`FROM tracks 
-	WHERE genome = ?1 AND (public_id = ?1 OR platform = ?1 OR name LIKE ?2)
-	ORDER BY genome, platform, name`
+	SelectBedSql = `SELECT id, public_id, genome, platform, dataset, name, track_type, regions, url, tags `
 
-const BED_FROM_ID_SQL = SELECT_BED_SQL +
-	`FROM tracks WHERE public_id = ?1
-	ORDER BY genome, platform, name`
+	BedsSql = SelectBedSql +
+		`FROM tracks 
+		WHERE genome = :genome AND platform = :platform 
+		ORDER BY name`
 
-const OVERLAPPING_REGIONS_SQL = `SELECT chr, start, end, score, name, tags 
-	FROM regions
- 	WHERE chr = ?1 AND (start <= ?3 AND end >= ?2)
-	ORDER BY chr, start`
+	AllBedsSql = SelectBedSql +
+		`FROM tracks WHERE genome = :genome 
+		ORDER BY genome, platform, name`
 
-type BedRegion struct {
-	Location *dna.Location `json:"loc"`
-	Name     string        `json:"name,omitempty"`
-	Tags     string        `json:"tags,omitempty"`
-	Score    float64       `json:"score"`
-}
+	SearchBedSql = SelectBedSql +
+		`FROM tracks 
+		WHERE genome = :genome AND (public_id = :id OR platform = :id OR name LIKE :name) 
+		ORDER BY genome, platform, name`
 
-type BedTrack struct {
-	PublicId  string   `json:"publicId"`
-	Platform  string   `json:"platform"`
-	Genome    string   `json:"genome"`
-	Dataset   string   `json:"dataset"`
-	Name      string   `json:"name"`
-	TrackType string   `json:"trackType"`
-	Url       string   `json:"url"`
-	Tags      []string `json:"tags"`
-	Regions   int      `json:"regions"`
-}
+	BedFromIdSql = SelectBedSql +
+		`FROM tracks WHERE public_id = :publicId
+		ORDER BY genome, platform, name`
 
-type BedReader struct {
-	file string
-}
+	OverlappingRegionsSql = `SELECT chr, start, end, score, name, tags 
+		FROM regions
+		WHERE chr = :chr AND (start <= :end AND end >= :start)
+		ORDER BY chr, start`
+)
 
 func NewBedReader(file string) (*BedReader, error) {
 	return &BedReader{file: file}, nil
@@ -78,7 +82,7 @@ func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegio
 
 	//log.Debug().Msgf("hmm %s", reader.file)
 
-	db, err := sql.Open("sqlite3", reader.file)
+	db, err := sql.Open(sys.Sqlite3DB, reader.file)
 
 	if err != nil {
 		return ret, err
@@ -86,10 +90,12 @@ func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegio
 
 	defer db.Close()
 
-	rows, err := db.Query(OVERLAPPING_REGIONS_SQL,
-		location.Chr,
-		location.Start,
-		location.End)
+	rows, err := db.Query(OverlappingRegionsSql,
+		sql.Named("chr", location.Chr()),
+		sql.Named("start", location.Start()),
+		sql.Named("end", location.End()))
+
+	//log.Debug().Msgf("query done %s", OverlappingRegionsSql, location.Chr(), location.Start(), location.End())
 
 	if err != nil {
 		return ret, err
@@ -135,7 +141,7 @@ func (tracksDb *BedsDB) Dir() string {
 }
 
 func NewBedsDB(dir string) *BedsDB {
-	db := sys.Must(sql.Open("sqlite3", filepath.Join(dir, "tracks.db?mode=ro")))
+	db := sys.Must(sql.Open(sys.Sqlite3DB, filepath.Join(dir, "tracks.db?mode=ro")))
 
 	//stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
 	//stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
@@ -150,7 +156,7 @@ func NewBedsDB(dir string) *BedsDB {
 }
 
 func (bedsDb *BedsDB) Genomes() ([]string, error) {
-	rows, err := bedsDb.db.Query(GENOMES_SQL)
+	rows, err := bedsDb.db.Query(GenomesSql)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
@@ -176,7 +182,7 @@ func (bedsDb *BedsDB) Genomes() ([]string, error) {
 }
 
 func (bedsDb *BedsDB) Platforms(genome string) ([]string, error) {
-	rows, err := bedsDb.db.Query(PLATFORMS_SQL, genome)
+	rows, err := bedsDb.db.Query(PlatformsSql, sql.Named("genome", genome))
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
@@ -192,7 +198,7 @@ func (bedsDb *BedsDB) Platforms(genome string) ([]string, error) {
 		err := rows.Scan(&platform)
 
 		if err != nil {
-			return nil, err //fmt.Errorf("there was an error with the database records")
+			return nil, err
 		}
 
 		ret = append(ret, platform)
@@ -202,7 +208,7 @@ func (bedsDb *BedsDB) Platforms(genome string) ([]string, error) {
 }
 
 func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
-	rows, err := bedsDb.db.Query(BEDS_SQL, genome, platform)
+	rows, err := bedsDb.db.Query(BedsSql, genome, platform)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
@@ -254,9 +260,12 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 	var err error
 
 	if query != "" {
-		rows, err = bedsDb.db.Query(SEARCH_BED_SQL, genome, query, fmt.Sprintf("%%%s%%", query))
+		rows, err = bedsDb.db.Query(SearchBedSql,
+			sql.Named("genome", genome),
+			sql.Named("id", query),
+			sql.Named("name", fmt.Sprintf("%%%s%%", query)))
 	} else {
-		rows, err = bedsDb.db.Query(ALL_BEDS_SQL, genome)
+		rows, err = bedsDb.db.Query(AllBedsSql, sql.Named("genome", genome))
 	}
 
 	if err != nil {
@@ -318,7 +327,7 @@ func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
 	var url string
 	var tags string
 
-	err := bedsDb.db.QueryRow(BED_FROM_ID_SQL, publicId).Scan(&id,
+	err := bedsDb.db.QueryRow(BedFromIdSql, sql.Named("publicId", publicId)).Scan(&id,
 		&publicId,
 		&genome,
 		&platform,
