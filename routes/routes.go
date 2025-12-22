@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/antonybholmes/go-beds"
-	"github.com/antonybholmes/go-beds/bedsdbcache"
+	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-web"
 )
@@ -47,7 +47,7 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 }
 
 func GenomeRoute(c *gin.Context) {
-	platforms, err := bedsdbcache.Genomes()
+	platforms, err := beddb.Genomes()
 
 	if err != nil {
 		c.Error(err)
@@ -60,7 +60,7 @@ func GenomeRoute(c *gin.Context) {
 func PlatformRoute(c *gin.Context) {
 	genome := c.Param("assembly")
 
-	platforms, err := bedsdbcache.Platforms(genome)
+	platforms, err := beddb.Platforms(genome)
 
 	if err != nil {
 		c.Error(err)
@@ -79,7 +79,7 @@ func SearchBedsRoute(c *gin.Context) {
 
 	query := c.Query("search")
 
-	tracks, err := bedsdbcache.Search(genome, query)
+	tracks, err := beddb.Search(genome, query)
 
 	if err != nil {
 		c.Error(err)
@@ -108,7 +108,7 @@ func BedRegionsRoute(c *gin.Context) {
 
 		//log.Debug().Msgf("bed id %s", bed)
 
-		reader, err := bedsdbcache.ReaderFromId(bed)
+		reader, err := beddb.ReaderFromId(bed)
 
 		if err != nil {
 			c.Error(err)

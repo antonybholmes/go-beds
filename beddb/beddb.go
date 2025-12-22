@@ -1,4 +1,4 @@
-package bedsdbcache
+package beddb
 
 import (
 	"sync"
@@ -9,7 +9,7 @@ import (
 var instance *beds.BedsDB
 var once sync.Once
 
-func InitCache(dir string) *beds.BedsDB {
+func InitBedDB(dir string) *beds.BedsDB {
 	once.Do(func() {
 		instance = beds.NewBedsDB(dir)
 	})

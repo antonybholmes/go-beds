@@ -149,9 +149,6 @@ func NewBedsDB(dir string) *BedsDB {
 
 	return &BedsDB{dir: dir,
 		db: db,
-		//stmtAllBeds:    stmtAllBeds,
-		//stmtSearchBeds: stmtSearchBeds,
-		//stmtBedFromId:  stmtBedFromId
 	}
 }
 
