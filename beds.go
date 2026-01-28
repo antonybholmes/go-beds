@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/antonybholmes/go-dna"
+	"github.com/antonybholmes/go-seqs"
 	"github.com/antonybholmes/go-sys"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -26,16 +26,17 @@ type (
 		Score    float64       `json:"score"`
 	}
 
-	BedTrack struct {
-		PublicId  string   `json:"publicId"`
-		Platform  string   `json:"platform"`
-		Genome    string   `json:"genome"`
-		Dataset   string   `json:"dataset"`
-		Name      string   `json:"name"`
-		TrackType string   `json:"trackType"`
-		Url       string   `json:"url"`
-		Tags      []string `json:"tags"`
-		Regions   int      `json:"regions"`
+	BedSample struct {
+		Id       string   `json:"id"`
+		Platform string   `json:"platform"`
+		Genome   string   `json:"genome"`
+		Assembly string   `json:"assembly"`
+		Dataset  string   `json:"dataset"`
+		Name     string   `json:"name"`
+		Type     string   `json:"type"`
+		Url      string   `json:"url"`
+		Tags     []string `json:"tags"`
+		Regions  int      `json:"regions"`
 	}
 
 	BedReader struct {
@@ -44,28 +45,51 @@ type (
 )
 
 const (
-	GenomesSql   = `SELECT DISTINCT genome FROM tracks ORDER BY genome`
-	PlatformsSql = `SELECT DISTINCT platform FROM tracks WHERE genome = :genome ORDER BY platform`
-
-	SelectBedSql = `SELECT id, public_id, genome, platform, dataset, name, track_type, regions, url, tags `
+	SelectBedSql = `SELECT DISTINCT 
+		s.id, 
+		d.genome, 
+		d.assembly, 
+		d.platform, 
+		d.name AS dataset_name, 
+		s.name AS sample_name, 
+		s.type, 
+		s.regions, 
+		s.url, 
+		s.tags
+	FROM samples s
+	JOIN datasets d ON s.dataset_id = d.id
+	JOIN dataset_permissions dp ON d.id = dp.dataset_id
+	JOIN permissions p ON dp.permission_id = p.id
+	WHERE 
+		(:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))`
 
 	BedsSql = SelectBedSql +
-		`FROM tracks 
-		WHERE genome = :genome AND platform = :platform 
+		` AND assembly = :assembly AND platform = :platform 
 		ORDER BY name`
 
-	AllBedsSql = SelectBedSql +
-		`FROM tracks WHERE genome = :genome 
-		ORDER BY genome, platform, name`
-
-	SearchBedSql = SelectBedSql +
-		`FROM tracks 
-		WHERE genome = :genome AND (public_id = :id OR platform = :id OR name LIKE :name) 
-		ORDER BY genome, platform, name`
-
 	BedFromIdSql = SelectBedSql +
-		`FROM tracks WHERE public_id = :publicId
+		` AND s.id = :id
 		ORDER BY genome, platform, name`
+
+	BaseSearchSamplesSql = SelectBedSql +
+		` JOIN dataset_permissions dp ON d.id = dp.dataset_id
+		JOIN permissions p ON dp.permission_id = p.id
+		WHERE 
+			(:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))
+			AND d.assembly = :assembly`
+
+	AllBedsSql = BaseSearchSamplesSql +
+		` ORDER BY 
+			d.platform, 
+			d.name, 
+			s.name`
+
+	SearchBedSql = BaseSearchSamplesSql +
+		` AND (s.id = :id OR d.id = :id OR d.platform = :id OR d.name LIKE :q OR s.name LIKE :q)
+		ORDER BY 
+			d.platform, 
+			d.name, 
+			s.name`
 
 	OverlappingRegionsSql = `SELECT chr, start, end, score, name, tags 
 		FROM regions
@@ -136,12 +160,12 @@ type BedsDB struct {
 	dir string
 }
 
-func (tracksDb *BedsDB) Dir() string {
-	return tracksDb.dir
+func (bedb *BedsDB) Dir() string {
+	return bedb.dir
 }
 
 func NewBedsDB(dir string) *BedsDB {
-	db := sys.Must(sql.Open(sys.Sqlite3DB, filepath.Join(dir, "tracks.db?mode=ro")))
+	db := sys.Must(sql.Open(sys.Sqlite3DB, filepath.Join(dir, "samples.db?mode=ro")))
 
 	//stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
 	//stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
@@ -152,34 +176,99 @@ func NewBedsDB(dir string) *BedsDB {
 	}
 }
 
-func (bedsDb *BedsDB) Genomes() ([]string, error) {
-	rows, err := bedsDb.db.Query(GenomesSql)
+// func (bedsDb *BedsDB) Genomes() ([]string, error) {
+// 	rows, err := bedsDb.db.Query(GenomesSql)
+
+// 	if err != nil {
+// 		return nil, err //fmt.Errorf("there was an error with the database query")
+// 	}
+
+// 	ret := make([]string, 0, 10)
+
+// 	defer rows.Close()
+
+// 	var genome string
+
+// 	for rows.Next() {
+// 		err := rows.Scan(&genome)
+
+// 		if err != nil {
+// 			return nil, err //fmt.Errorf("there was an error with the database records")
+// 		}
+
+// 		ret = append(ret, genome)
+// 	}
+
+// 	return ret, nil
+// }
+
+func (bedb *BedsDB) CanViewSample(sampleId string, isAdmin bool, permissions []string) error {
+	namedArgs := []any{sql.Named("id", sampleId), sql.Named("is_admin", isAdmin)}
+
+	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+
+	query := strings.Replace(seqs.CanViewSampleSql, "<<PERMISSIONS>>", inClause, 1)
+
+	var id string
+	err := bedb.db.QueryRow(query, namedArgs...).Scan(&id)
+
+	// no rows means no permission
+	if err != nil {
+		return err
+	}
+
+	// sanity
+	if id != sampleId {
+		return fmt.Errorf("permission denied to view sample %s", sampleId)
+	}
+
+	return nil
+}
+
+func (bedb *BedsDB) Platforms(assembly string, isAdmin bool, permissions []string) ([]*seqs.Platform, error) {
+	namedArgs := []any{sql.Named("assembly", assembly), sql.Named("is_admin", isAdmin)}
+
+	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+
+	query := strings.Replace(seqs.PlatformsSql, "<<PERMISSIONS>>", inClause, 1)
+
+	rows, err := bedb.db.Query(query, namedArgs...)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	ret := make([]string, 0, 10)
-
 	defer rows.Close()
 
-	var genome string
+	ret := make([]*seqs.Platform, 0, 10)
 
 	for rows.Next() {
-		err := rows.Scan(&genome)
+		var platform seqs.Platform
+
+		err := rows.Scan(&platform.Genome,
+			&platform.Assembly,
+			&platform.Platform)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, genome)
+		ret = append(ret, &platform)
 	}
 
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) Platforms(genome string) ([]string, error) {
-	rows, err := bedsDb.db.Query(PlatformsSql, sql.Named("genome", genome))
+func (bedb *BedsDB) Datasets(assembly string, permissions []string) ([]*seqs.Dataset, error) {
+	// build sql.Named args
+	namedArgs := []any{sql.Named("assembly", assembly)}
+
+	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+	query := strings.Replace(seqs.DatasetsSql, "<<PERMISSIONS>>", inClause, 1)
+
+	// execute query
+
+	rows, err := bedb.db.Query(query, namedArgs...)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
@@ -187,25 +276,38 @@ func (bedsDb *BedsDB) Platforms(genome string) ([]string, error) {
 
 	defer rows.Close()
 
-	ret := make([]string, 0, 10)
-
-	var platform string
+	ret := make([]*seqs.Dataset, 0, 10)
 
 	for rows.Next() {
-		err := rows.Scan(&platform)
+		var dataset seqs.Dataset
+
+		err := rows.Scan(&dataset.Id,
+			&dataset.Assembly,
+			&dataset.Platform,
+			&dataset.Name)
 
 		if err != nil {
-			return nil, err
+			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		ret = append(ret, platform)
+		ret = append(ret, &dataset)
 	}
 
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
-	rows, err := bedsDb.db.Query(BedsSql, genome, platform)
+func (bedb *BedsDB) PlatformDatasets(platform string, assembly string, permissions []string) ([]*seqs.Dataset, error) {
+	// build sql.Named args
+
+	namedArgs := []any{sql.Named("assembly", assembly), sql.Named("platform", platform)}
+
+	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+
+	query := strings.Replace(seqs.DatasetsSql, "<<PERMISSIONS>>", inClause, 1)
+
+	// execute query
+
+	rows, err := bedb.db.Query(query, namedArgs...)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
@@ -213,56 +315,66 @@ func (bedsDb *BedsDB) Beds(genome string, platform string) ([]BedTrack, error) {
 
 	defer rows.Close()
 
-	ret := make([]BedTrack, 0, 10)
+	ret := make([]*seqs.Dataset, 0, 10)
 
-	var id int
-	var publicId string
-	var dataset string
-	var name string
-	var trackType string
-	var url string
+	for rows.Next() {
+		var dataset seqs.Dataset
+
+		err := rows.Scan(&dataset.Id,
+			&dataset.Assembly,
+			&dataset.Platform,
+			&dataset.Name)
+
+		if err != nil {
+			return nil, err //fmt.Errorf("there was an error with the database records")
+		}
+
+		ret = append(ret, &dataset)
+	}
+
+	return ret, nil
+}
+
+func (bedb *BedsDB) Beds(genome string, platform string) ([]*BedSample, error) {
+	rows, err := bedb.db.Query(BedsSql, genome, platform)
+
+	if err != nil {
+		return nil, err //fmt.Errorf("there was an error with the database query")
+	}
+
+	defer rows.Close()
+
+	ret := make([]*BedSample, 0, 10)
+
 	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &url, &tags)
+		sample, err := rowsToSample(rows)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		tagList := strings.Split(tags, ",")
-		sort.Strings(tagList)
+		sample.Tags = seqs.TagsToList(tags)
 
-		track := BedTrack{PublicId: publicId,
-			Genome:    genome,
-			Platform:  platform,
-			Dataset:   dataset,
-			Name:      name,
-			TrackType: trackType,
-			Url:       url,
-			Tags:      tagList}
-
-		if track.TrackType == "Remote BigBed" {
-			track.Url = url
-		}
-
-		ret = append(ret, track)
+		ret = append(ret, sample)
 	}
 
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
+func (bedb *BedsDB) Search(query string, assembly string, isAdmin bool, permissions []string) ([]*BedSample, error) {
 	var rows *sql.Rows
 	var err error
 
 	if query != "" {
-		rows, err = bedsDb.db.Query(SearchBedSql,
-			sql.Named("genome", genome),
+		rows, err = bedb.db.Query(SearchBedSql,
+			sql.Named("assembly", assembly),
 			sql.Named("id", query),
-			sql.Named("name", fmt.Sprintf("%%%s%%", query)))
+			sql.Named("name", fmt.Sprintf("%%%s%%", query)),
+			sql.Named("is_admin", isAdmin))
 	} else {
-		rows, err = bedsDb.db.Query(AllBedsSql, sql.Named("genome", genome))
+		rows, err = bedb.db.Query(AllBedsSql, sql.Named("assembly", assembly), sql.Named("is_admin", isAdmin))
 	}
 
 	if err != nil {
@@ -271,75 +383,84 @@ func (bedsDb *BedsDB) Search(genome string, query string) ([]BedTrack, error) {
 
 	defer rows.Close()
 
-	ret := make([]BedTrack, 0, 10)
+	ret := make([]*BedSample, 0, 10)
 
-	var id int
-	var publicId string
-	var platform string
-	var dataset string
-	var name string
-	var trackType string
-	var regions int
-	var url string
 	var tags string
 
 	for rows.Next() {
-		err := rows.Scan(&id, &publicId, &genome, &platform, &dataset, &name, &trackType, &regions, &url, &tags)
+		sample, err := rowsToSample(rows)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		tagList := strings.Split(tags, ",")
-		sort.Strings(tagList)
+		sample.Tags = seqs.TagsToList(tags)
 
-		track := BedTrack{PublicId: publicId,
-			Genome:    genome,
-			Platform:  platform,
-			Dataset:   dataset,
-			Name:      name,
-			Regions:   regions,
-			TrackType: trackType,
-			Tags:      tagList}
-
-		if track.TrackType == "Remote BigBed" {
-			track.Url = url
-		}
-
-		ret = append(ret, track)
+		ret = append(ret, sample)
 	}
 
 	return ret, nil
 }
 
-func (bedsDb *BedsDB) ReaderFromId(publicId string) (*BedReader, error) {
+func (bedb *BedsDB) ReaderFromId(sampleId string) (*BedReader, error) {
 
-	var platform string
-	var genome string
-	var dataset string
-	var name string
-	var trackType string
-	var regions int
-	var id int
-	var url string
-	var tags string
+	row := bedb.db.QueryRow(BedFromIdSql, sql.Named("id", sampleId))
 
-	err := bedsDb.db.QueryRow(BedFromIdSql, sql.Named("publicId", publicId)).Scan(&id,
-		&publicId,
-		&genome,
-		&platform,
-		&dataset,
-		&name,
-		&trackType,
-		&regions,
-		&url,
-		&tags)
+	sample, err := rowToSample(row)
 
 	if err != nil {
 		return nil, err
 	}
 
-	url = filepath.Join(bedsDb.dir, fmt.Sprintf("%s?mode=ro", url))
+	url := filepath.Join(bedb.dir, fmt.Sprintf("%s?mode=ro", sample.Url))
 
 	return NewBedReader(url)
+}
+
+func rowToSample(rows *sql.Row) (*BedSample, error) {
+	var sample BedSample
+	var tags string
+
+	err := rows.Scan(&sample.Id,
+		&sample.Genome,
+		&sample.Assembly,
+		&sample.Platform,
+		&sample.Dataset,
+		&sample.Name,
+		&sample.Type,
+		&sample.Regions,
+		&sample.Url,
+		&tags)
+
+	if err != nil {
+		return nil, err //fmt.Errorf("there was an error with the database records")
+	}
+
+	sample.Tags = seqs.TagsToList(tags)
+
+	return &sample, nil
+}
+
+func rowsToSample(rows *sql.Rows) (*BedSample, error) {
+	var sample BedSample
+	var tags string
+
+	err := rows.Scan(&sample.Id,
+		&sample.Genome,
+		&sample.Assembly,
+		&sample.Platform,
+		&sample.Dataset,
+		&sample.Name,
+		&sample.Type,
+		&sample.Regions,
+		&sample.Url,
+		&tags)
+
+	if err != nil {
+		return nil, err //fmt.Errorf("there was an error with the database records")
+	}
+
+	sample.Tags = seqs.TagsToList(tags)
+
+	return &sample, nil
 }

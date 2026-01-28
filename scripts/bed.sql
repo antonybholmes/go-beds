@@ -1,14 +1,14 @@
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE track (
-	id INTEGER PRIMARY KEY ASC,
-	public_id TEXT_NOT_NULL,
+CREATE TABLE sample (
+	id TEXT NOT NULL,
 	genome TEXT NOT NULL,
+	assembly TEXT NOT NULL,
 	platform TEXT NOT NULL,
 	name TEXT NOT NULL,
 	description TEXT NOT NULL DEFAULT '',
-	track_type TEXT NOT NULL,
+	type TEXT NOT NULL DEFAULT 'BED',
 	regions INTEGER NOT NULL DEFAULT 0,
 	tags TEXT NOT NULL DEFAULT '');
 

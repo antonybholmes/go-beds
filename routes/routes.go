@@ -9,6 +9,8 @@ import (
 	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-web"
+	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/middleware"
 )
 
 var (
@@ -23,7 +25,7 @@ type (
 
 	BedsParams struct {
 		Location *dna.Location `json:"location"`
-		Beds     []string      `json:"beds"`
+		Samples  []string      `json:"samples"`
 	}
 )
 
@@ -43,82 +45,88 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 		return nil, err
 	}
 
-	return &BedsParams{Location: location, Beds: params.Beds}, nil
+	return &BedsParams{Location: location, Samples: params.Beds}, nil
 }
 
-func GenomeRoute(c *gin.Context) {
-	platforms, err := beddb.Genomes()
+// func GenomeRoute(c *gin.Context) {
+// 	platforms, err := beddb.Genomes()
 
-	if err != nil {
-		c.Error(err)
-		return
-	}
+// 	if err != nil {
+// 		c.Error(err)
+// 		return
+// 	}
 
-	web.MakeDataResp(c, "", platforms)
-}
+// 	web.MakeDataResp(c, "", platforms)
+// }
 
-func PlatformRoute(c *gin.Context) {
-	genome := c.Param("assembly")
+func PlatformsRoute(c *gin.Context) {
+	middleware.JwtUserRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 
-	platforms, err := beddb.Platforms(genome)
+		assembly := c.Param("assembly")
 
-	if err != nil {
-		c.Error(err)
-		return
-	}
+		platforms, err := beddb.Platforms(assembly, isAdmin, user.Permissions)
+		if err != nil {
+			c.Error(err)
+			return
+		}
 
-	web.MakeDataResp(c, "", platforms)
+		web.MakeDataResp(c, "", platforms)
+	})
 }
 
 func SearchBedsRoute(c *gin.Context) {
-	genome := c.Param("assembly")
+	middleware.JwtUserRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+		assembly := c.Param("assembly")
 
-	if genome == "" {
-		web.BadReqResp(c, ErrNoBedsSupplied)
-	}
+		if assembly == "" {
+			web.BadReqResp(c, ErrNoBedsSupplied)
+		}
 
-	query := c.Query("search")
+		query := c.Query("search")
 
-	tracks, err := beddb.Search(genome, query)
-
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	web.MakeDataResp(c, "", tracks)
-}
-
-func BedRegionsRoute(c *gin.Context) {
-
-	params, err := ParseBedParamsFromPost(c)
-
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	if len(params.Beds) == 0 {
-		web.BadReqResp(c, ErrNoBedsSupplied)
-	}
-
-	ret := make([][]*beds.BedRegion, 0, len(params.Beds))
-
-	for _, bed := range params.Beds {
-
-		//log.Debug().Msgf("bed id %s", bed)
-
-		reader, err := beddb.ReaderFromId(bed)
+		tracks, err := beddb.Search(query, assembly, isAdmin, user.Permissions)
 
 		if err != nil {
 			c.Error(err)
 			return
 		}
 
-		features, _ := reader.OverlappingRegions(params.Location)
+		web.MakeDataResp(c, "", tracks)
+	})
+}
 
-		ret = append(ret, features)
-	}
+func BedRegionsRoute(c *gin.Context) {
+	middleware.JwtUserRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+		params, err := ParseBedParamsFromPost(c)
 
-	web.MakeDataResp(c, "", ret)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		if len(params.Samples) == 0 {
+			web.BadReqResp(c, ErrNoBedsSupplied)
+		}
+
+		ret := make([][]*beds.BedRegion, 0, len(params.Samples))
+
+		for _, sample := range params.Samples {
+			err := beddb.CanViewSample(sample, isAdmin, user.Permissions)
+
+			//log.Debug().Msgf("bed id %s", bed)
+
+			reader, err := beddb.ReaderFromId(sample)
+
+			if err != nil {
+				c.Error(err)
+				return
+			}
+
+			features, _ := reader.OverlappingRegions(params.Location)
+
+			ret = append(ret, features)
+		}
+
+		web.MakeDataResp(c, "", ret)
+	})
 }
