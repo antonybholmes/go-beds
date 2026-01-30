@@ -12,14 +12,19 @@ CREATE TABLE sample (
 	regions INTEGER NOT NULL DEFAULT 0,
 	tags TEXT NOT NULL DEFAULT '');
 
+CREATE TABLE chromosomes (
+	id INTEGER PRIMARY KEY,
+	name TEXT NOT NULL UNIQUE);
+
 CREATE TABLE regions (
-	id INTEGER PRIMARY KEY ASC,
-	chr TEXT NOT NULL,
+	id INTEGER PRIMARY KEY,
+	chr_id INTEGER NOT NULL,
 	start INTEGER NOT NULL,
 	end INTEGER NOT NULL,
 	score REAL NOT NULL DEFAULT 0,
 	name TEXT NOT NULL DEFAULT '',
 	tags TEXT NOT NULL DEFAULT '',
-	UNIQUE(chr, start, end));
+	UNIQUE(chr_id, start, end),
+	FOREIGN KEY (chr_id) REFERENCES chromosomes(id) ON DELETE CASCADE);
 CREATE INDEX regions_name_idx ON regions(name);
 CREATE INDEX regions_tags_idx ON regions(tags);

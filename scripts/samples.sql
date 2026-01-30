@@ -15,7 +15,7 @@ CREATE INDEX datasets_idx ON datasets(genome, assembly, platform, name);
 CREATE INDEX dataset_tags_idx ON datasets(tags);
 
 CREATE TABLE permissions (
-	id TEXT PRIMARY KEY ASC,
+	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL);
 CREATE INDEX permissions_name_idx ON permissions(name);
 
@@ -28,14 +28,14 @@ CREATE TABLE dataset_permissions (
 
 
 CREATE TABLE samples (
-	id TEXT NOT NULL,
+	id TEXT PRIMARY KEY,
 	dataset_id TEXT NOT NULL,
 	name TEXT NOT NULL,
 	type TEXT NOT NULL,
 	regions INTEGER NOT NULL DEFAULT 0,
 	url TEXT NOT NULL,
 	tags TEXT NOT NULL DEFAULT '',	
-	UNIQUE(dataset_id, name),
+	UNIQUE(name),
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE);
 CREATE INDEX samples_name_idx ON samples(name);
 CREATE INDEX samples_tags_idx ON samples(tags);

@@ -9,6 +9,8 @@ import (
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-seqs"
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-sys/log"
+	"github.com/antonybholmes/go-web/auth/sqlite"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -69,14 +71,10 @@ const (
 
 	BedFromIdSql = SelectBedSql +
 		` AND s.id = :id
-		ORDER BY genome, platform, name`
+		ORDER BY d.genome, d.platform, s.name`
 
 	BaseSearchSamplesSql = SelectBedSql +
-		` JOIN dataset_permissions dp ON d.id = dp.dataset_id
-		JOIN permissions p ON dp.permission_id = p.id
-		WHERE 
-			(:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))
-			AND d.assembly = :assembly`
+		` AND d.assembly = :assembly`
 
 	AllBedsSql = BaseSearchSamplesSql +
 		` ORDER BY 
@@ -91,10 +89,11 @@ const (
 			d.name, 
 			s.name`
 
-	OverlappingRegionsSql = `SELECT chr, start, end, score, name, tags 
-		FROM regions
-		WHERE chr = :chr AND (start <= :end AND end >= :start)
-		ORDER BY chr, start`
+	OverlappingRegionsSql = `SELECT c.name, r.start, r.end, r.score, r.name, r.tags 
+		FROM regions r
+		JOIN chromosomes c ON r.chr_id = c.id
+		WHERE c.name = :chr AND (r.start <= :end AND r.end >= :start)
+		ORDER BY c.name, r.start`
 )
 
 func NewBedReader(file string) (*BedReader, error) {
@@ -205,7 +204,7 @@ func NewBedsDB(dir string) *BedsDB {
 func (bedb *BedsDB) CanViewSample(sampleId string, isAdmin bool, permissions []string) error {
 	namedArgs := []any{sql.Named("id", sampleId), sql.Named("is_admin", isAdmin)}
 
-	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+	inClause := sqlite.MakePermissionsInClause(permissions, &namedArgs)
 
 	query := strings.Replace(seqs.CanViewSampleSql, "<<PERMISSIONS>>", inClause, 1)
 
@@ -228,7 +227,7 @@ func (bedb *BedsDB) CanViewSample(sampleId string, isAdmin bool, permissions []s
 func (bedb *BedsDB) Platforms(assembly string, isAdmin bool, permissions []string) ([]*seqs.Platform, error) {
 	namedArgs := []any{sql.Named("assembly", assembly), sql.Named("is_admin", isAdmin)}
 
-	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+	inClause := sqlite.MakePermissionsInClause(permissions, &namedArgs)
 
 	query := strings.Replace(seqs.PlatformsSql, "<<PERMISSIONS>>", inClause, 1)
 
@@ -263,7 +262,7 @@ func (bedb *BedsDB) Datasets(assembly string, permissions []string) ([]*seqs.Dat
 	// build sql.Named args
 	namedArgs := []any{sql.Named("assembly", assembly)}
 
-	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+	inClause := sqlite.MakePermissionsInClause(permissions, &namedArgs)
 	query := strings.Replace(seqs.DatasetsSql, "<<PERMISSIONS>>", inClause, 1)
 
 	// execute query
@@ -301,7 +300,7 @@ func (bedb *BedsDB) PlatformDatasets(platform string, assembly string, permissio
 
 	namedArgs := []any{sql.Named("assembly", assembly), sql.Named("platform", platform)}
 
-	inClause := seqs.MakePermissionsInClause(permissions, &namedArgs)
+	inClause := sqlite.MakePermissionsInClause(permissions, &namedArgs)
 
 	query := strings.Replace(seqs.DatasetsSql, "<<PERMISSIONS>>", inClause, 1)
 
@@ -363,21 +362,48 @@ func (bedb *BedsDB) Beds(genome string, platform string) ([]*BedSample, error) {
 	return ret, nil
 }
 
-func (bedb *BedsDB) Search(query string, assembly string, isAdmin bool, permissions []string) ([]*BedSample, error) {
+func (bedb *BedsDB) Search(q string, assembly string, isAdmin bool, permissions []string) ([]*BedSample, error) {
 	var rows *sql.Rows
 	var err error
 
-	if query != "" {
-		rows, err = bedb.db.Query(SearchBedSql,
-			sql.Named("assembly", assembly),
-			sql.Named("id", query),
-			sql.Named("name", fmt.Sprintf("%%%s%%", query)),
-			sql.Named("is_admin", isAdmin))
+	// if platform != "" {
+	// 	// platform specific search
+	// 	rows, err = sdb.db.Query(SearchPlatformSamplesSql,
+	// 		sql.Named("assembly", assembly),
+	// 		sql.Named("platform", platform),
+	// 		sql.Named("id", query),
+	// 		sql.Named("q", fmt.Sprintf("%%%s%%", query)))
+
+	// } else {
+	//search all platforms within assembly
+
+	if q != "" {
+		namedParams := []any{sql.Named("assembly", assembly),
+			sql.Named("id", q),
+			sql.Named("name", fmt.Sprintf("%%%s%%", q)),
+			sql.Named("is_admin", isAdmin)}
+
+		inClause := sqlite.MakePermissionsInClause(permissions, &namedParams)
+
+		stmt := strings.Replace(SearchBedSql, "<<PERMISSIONS>>", inClause, 1)
+
+		log.Debug().Msgf("searching beds for query '%s' assembly '%s'", q, stmt)
+
+		rows, err = bedb.db.Query(stmt, namedParams...)
 	} else {
-		rows, err = bedb.db.Query(AllBedsSql, sql.Named("assembly", assembly), sql.Named("is_admin", isAdmin))
+		namedParams := []any{sql.Named("assembly", assembly), sql.Named("is_admin", isAdmin)}
+
+		inClause := sqlite.MakePermissionsInClause(permissions, &namedParams)
+
+		stmt := strings.Replace(AllBedsSql, "<<PERMISSIONS>>", inClause, 1)
+
+		log.Debug().Msgf("searching beds for query '%s' assembly '%s'", stmt, AllBedsSql)
+
+		rows, err = bedb.db.Query(stmt, namedParams...)
 	}
 
 	if err != nil {
+		log.Error().Msgf("error querying beds: %v", err)
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
@@ -402,9 +428,14 @@ func (bedb *BedsDB) Search(query string, assembly string, isAdmin bool, permissi
 	return ret, nil
 }
 
-func (bedb *BedsDB) ReaderFromId(sampleId string) (*BedReader, error) {
+func (bedb *BedsDB) ReaderFromId(sampleId string, isAdmin bool, permissions []string) (*BedReader, error) {
+	namedParams := []any{sql.Named("id", sampleId), sql.Named("is_admin", isAdmin)}
 
-	row := bedb.db.QueryRow(BedFromIdSql, sql.Named("id", sampleId))
+	inClause := sqlite.MakePermissionsInClause(permissions, &namedParams)
+
+	stmt := strings.Replace(BedFromIdSql, "<<PERMISSIONS>>", inClause, 1)
+
+	row := bedb.db.QueryRow(stmt, namedParams...)
 
 	sample, err := rowToSample(row)
 

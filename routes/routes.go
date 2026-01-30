@@ -8,6 +8,7 @@ import (
 	"github.com/antonybholmes/go-beds"
 	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/middleware"
@@ -20,7 +21,7 @@ var (
 type (
 	ReqBedsParams struct {
 		Location string   `json:"location"`
-		Beds     []string `json:"beds"`
+		Samples  []string `json:"samples"`
 	}
 
 	BedsParams struct {
@@ -45,7 +46,7 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 		return nil, err
 	}
 
-	return &BedsParams{Location: location, Samples: params.Beds}, nil
+	return &BedsParams{Location: location, Samples: params.Samples}, nil
 }
 
 // func GenomeRoute(c *gin.Context) {
@@ -60,7 +61,7 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 // }
 
 func PlatformsRoute(c *gin.Context) {
-	middleware.JwtUserRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 
 		assembly := c.Param("assembly")
 
@@ -75,7 +76,7 @@ func PlatformsRoute(c *gin.Context) {
 }
 
 func SearchBedsRoute(c *gin.Context) {
-	middleware.JwtUserRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 		assembly := c.Param("assembly")
 
 		if assembly == "" {
@@ -96,8 +97,10 @@ func SearchBedsRoute(c *gin.Context) {
 }
 
 func BedRegionsRoute(c *gin.Context) {
-	middleware.JwtUserRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 		params, err := ParseBedParamsFromPost(c)
+
+		log.Debug().Msgf("bed id")
 
 		if err != nil {
 			c.Error(err)
@@ -111,11 +114,10 @@ func BedRegionsRoute(c *gin.Context) {
 		ret := make([][]*beds.BedRegion, 0, len(params.Samples))
 
 		for _, sample := range params.Samples {
-			err := beddb.CanViewSample(sample, isAdmin, user.Permissions)
 
-			//log.Debug().Msgf("bed id %s", bed)
+			log.Debug().Msgf("bed id %s", sample)
 
-			reader, err := beddb.ReaderFromId(sample)
+			reader, err := beddb.ReaderFromId(sample, isAdmin, user.Permissions)
 
 			if err != nil {
 				c.Error(err)

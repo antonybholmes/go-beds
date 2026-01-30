@@ -38,8 +38,8 @@ func Search(query string, assembly string, isAdmin bool, permissions []string) (
 	return instance.Search(query, assembly, isAdmin, permissions)
 }
 
-func ReaderFromId(uuid string) (*beds.BedReader, error) {
-	return instance.ReaderFromId(uuid)
+func ReaderFromId(sampleId string, isAdmin bool, permissions []string) (*beds.BedReader, error) {
+	return instance.ReaderFromId(sampleId, isAdmin, permissions)
 }
 
 func CanViewSample(sampleId string, isAdmin bool, permissions []string) error {
