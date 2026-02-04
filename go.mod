@@ -13,7 +13,7 @@ replace github.com/antonybholmes/go-seqs => ../go-seqs
 replace github.com/antonybholmes/go-web => ../go-web
 
 require (
-	github.com/antonybholmes/go-seqs v0.0.0-00010101000000-000000000000
+	github.com/antonybholmes/go-seqs v0.0.0-20260105204534-bb18b6f2c6e3
 	github.com/antonybholmes/go-sys v0.0.0-20260105204539-98810971944a
 	github.com/mattn/go-sqlite3 v1.14.33
 )
@@ -66,7 +66,6 @@ require (
 	github.com/xyproto/randomstring v1.2.0 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
@@ -76,7 +75,7 @@ require (
 
 require (
 	github.com/antonybholmes/go-dna v0.0.0-20260105204534-358e33dd6d4e
-	github.com/antonybholmes/go-web v0.0.0-20251215211100-5555b69aa3c0
+	github.com/antonybholmes/go-web v0.0.0-20260105204424-d84d17bf4d7a
 	github.com/gin-gonic/gin v1.11.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
