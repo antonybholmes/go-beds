@@ -62,7 +62,7 @@ const (
 	JOIN dataset_permissions dp ON d.id = dp.dataset_id
 	JOIN permissions p ON dp.permission_id = p.id
 	WHERE 
-		(:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))`
+		<<PERMISSIONS>>`
 
 	BedsSql = SelectBedSql +
 		` AND assembly = :assembly AND platform = :platform 
