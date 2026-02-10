@@ -8,7 +8,6 @@ import (
 	"github.com/antonybholmes/go-beds"
 	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
-	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/middleware"
@@ -66,6 +65,7 @@ func PlatformsRoute(c *gin.Context) {
 		assembly := c.Param("assembly")
 
 		platforms, err := beddb.Platforms(assembly, isAdmin, user.Permissions)
+
 		if err != nil {
 			c.Error(err)
 			return
@@ -81,6 +81,7 @@ func SearchBedsRoute(c *gin.Context) {
 
 		if assembly == "" {
 			web.BadReqResp(c, ErrNoBedsSupplied)
+			return
 		}
 
 		query := c.Query("search")
@@ -100,8 +101,6 @@ func BedRegionsRoute(c *gin.Context) {
 	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 		params, err := ParseBedParamsFromPost(c)
 
-		log.Debug().Msgf("bed id")
-
 		if err != nil {
 			c.Error(err)
 			return
@@ -109,14 +108,12 @@ func BedRegionsRoute(c *gin.Context) {
 
 		if len(params.Samples) == 0 {
 			web.BadReqResp(c, ErrNoBedsSupplied)
+			return
 		}
 
 		ret := make([][]*beds.BedRegion, 0, len(params.Samples))
 
 		for _, sample := range params.Samples {
-
-			log.Debug().Msgf("bed id %s", sample)
-
 			reader, err := beddb.ReaderFromId(sample, isAdmin, user.Permissions)
 
 			if err != nil {
@@ -124,7 +121,12 @@ func BedRegionsRoute(c *gin.Context) {
 				return
 			}
 
-			features, _ := reader.OverlappingRegions(params.Location)
+			features, err := reader.OverlappingRegions(params.Location)
+
+			if err != nil {
+				c.Error(err)
+				return
+			}
 
 			ret = append(ret, features)
 		}

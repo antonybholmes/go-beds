@@ -428,7 +428,7 @@ func (bedb *BedsDB) ReaderFromId(sampleId string, isAdmin bool, permissions []st
 		return nil, err
 	}
 
-	url := filepath.Join(bedb.dir, fmt.Sprintf("%s?mode=ro", sample.Url))
+	url := filepath.Join(bedb.dir, sample.Url+sys.SqliteReadOnlySuffix)
 
 	return NewBedReader(url)
 }
