@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/antonybholmes/go-beds"
-	"github.com/antonybholmes/go-seqs"
 )
 
 var instance *beds.BedsDB
@@ -30,9 +29,9 @@ func Dir() string {
 // 	return instance.Genomes()
 // }
 
-func Platforms(assembly string, isAdmin bool, permissions []string) ([]*seqs.Platform, error) {
-	return instance.Platforms(assembly, isAdmin, permissions)
-}
+// func Platforms(assembly string, isAdmin bool, permissions []string) ([]*seqs.Platform, error) {
+// 	return instance.Platforms(assembly, isAdmin, permissions)
+// }
 
 func Search(query string, assembly string, isAdmin bool, permissions []string) ([]*beds.BedSample, error) {
 	return instance.Search(query, assembly, isAdmin, permissions)

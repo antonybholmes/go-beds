@@ -221,37 +221,37 @@ func (bedb *BedsDB) CanViewSample(sampleId string, isAdmin bool, permissions []s
 	return nil
 }
 
-func (bedb *BedsDB) Platforms(assembly string, isAdmin bool, permissions []string) ([]*seqs.Platform, error) {
-	namedArgs := []any{sql.Named("assembly", assembly)}
+// func (bedb *BedsDB) Platforms(assembly string, isAdmin bool, permissions []string) ([]*seqs.Platform, error) {
+// 	namedArgs := []any{sql.Named("assembly", assembly)}
 
-	query := sqlite.MakePermissionsSql(seqs.PlatformsSql, isAdmin, permissions, &namedArgs)
+// 	query := sqlite.MakePermissionsSql(seqs.PlatformsSql, isAdmin, permissions, &namedArgs)
 
-	rows, err := bedb.db.Query(query, namedArgs...)
+// 	rows, err := bedb.db.Query(query, namedArgs...)
 
-	if err != nil {
-		return nil, err //fmt.Errorf("there was an error with the database query")
-	}
+// 	if err != nil {
+// 		return nil, err //fmt.Errorf("there was an error with the database query")
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	ret := make([]*seqs.Platform, 0, 10)
+// 	ret := make([]*seqs.Platform, 0, 10)
 
-	for rows.Next() {
-		var platform seqs.Platform
+// 	for rows.Next() {
+// 		var platform seqs.Platform
 
-		err := rows.Scan(&platform.Genome,
-			&platform.Assembly,
-			&platform.Platform)
+// 		err := rows.Scan(&platform.Genome,
+// 			&platform.Assembly,
+// 			&platform.Platform)
 
-		if err != nil {
-			return nil, err //fmt.Errorf("there was an error with the database records")
-		}
+// 		if err != nil {
+// 			return nil, err //fmt.Errorf("there was an error with the database records")
+// 		}
 
-		ret = append(ret, &platform)
-	}
+// 		ret = append(ret, &platform)
+// 	}
 
-	return ret, nil
-}
+// 	return ret, nil
+// }
 
 func (bedb *BedsDB) Datasets(assembly string, isAdmin bool, permissions []string) ([]*seqs.Dataset, error) {
 	// build sql.Named args
@@ -289,42 +289,42 @@ func (bedb *BedsDB) Datasets(assembly string, isAdmin bool, permissions []string
 	return ret, nil
 }
 
-func (bedb *BedsDB) PlatformDatasets(platform string, assembly string, isAdmin bool, permissions []string) ([]*seqs.Dataset, error) {
-	// build sql.Named args
+// func (bedb *BedsDB) PlatformDatasets(platform string, assembly string, isAdmin bool, permissions []string) ([]*seqs.Dataset, error) {
+// 	// build sql.Named args
 
-	namedArgs := []any{sql.Named("assembly", assembly), sql.Named("platform", platform)}
+// 	namedArgs := []any{sql.Named("assembly", assembly), sql.Named("platform", platform)}
 
-	query := sqlite.MakePermissionsSql(seqs.PlatformDatasetsSql, isAdmin, permissions, &namedArgs)
+// 	query := sqlite.MakePermissionsSql(seqs.PlatformDatasetsSql, isAdmin, permissions, &namedArgs)
 
-	// execute query
+// 	// execute query
 
-	rows, err := bedb.db.Query(query, namedArgs...)
+// 	rows, err := bedb.db.Query(query, namedArgs...)
 
-	if err != nil {
-		return nil, err //fmt.Errorf("there was an error with the database query")
-	}
+// 	if err != nil {
+// 		return nil, err //fmt.Errorf("there was an error with the database query")
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	ret := make([]*seqs.Dataset, 0, 10)
+// 	ret := make([]*seqs.Dataset, 0, 10)
 
-	for rows.Next() {
-		var dataset seqs.Dataset
+// 	for rows.Next() {
+// 		var dataset seqs.Dataset
 
-		err := rows.Scan(&dataset.Id,
-			&dataset.Assembly,
-			&dataset.Platform,
-			&dataset.Name)
+// 		err := rows.Scan(&dataset.Id,
+// 			&dataset.Assembly,
+// 			&dataset.Platform,
+// 			&dataset.Name)
 
-		if err != nil {
-			return nil, err //fmt.Errorf("there was an error with the database records")
-		}
+// 		if err != nil {
+// 			return nil, err //fmt.Errorf("there was an error with the database records")
+// 		}
 
-		ret = append(ret, &dataset)
-	}
+// 		ret = append(ret, &dataset)
+// 	}
 
-	return ret, nil
-}
+// 	return ret, nil
+// }
 
 func (bedb *BedsDB) Beds(genome string, platform string) ([]*BedSample, error) {
 	rows, err := bedb.db.Query(BedsSql, genome, platform)

@@ -59,21 +59,21 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 // 	web.MakeDataResp(c, "", platforms)
 // }
 
-func PlatformsRoute(c *gin.Context) {
-	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+// func PlatformsRoute(c *gin.Context) {
+// 	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 
-		assembly := c.Param("assembly")
+// 		assembly := c.Param("assembly")
 
-		platforms, err := beddb.Platforms(assembly, isAdmin, user.Permissions)
+// 		platforms, err := beddb.Platforms(assembly, isAdmin, user.Permissions)
 
-		if err != nil {
-			c.Error(err)
-			return
-		}
+// 		if err != nil {
+// 			c.Error(err)
+// 			return
+// 		}
 
-		web.MakeDataResp(c, "", platforms)
-	})
-}
+// 		web.MakeDataResp(c, "", platforms)
+// 	})
+// }
 
 func SearchBedsRoute(c *gin.Context) {
 	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
