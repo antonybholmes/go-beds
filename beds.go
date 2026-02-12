@@ -94,7 +94,12 @@ const (
 			d.name, 
 			s.name`
 
-	OverlappingRegionsSql = `SELECT c.name, r.start, r.end, r.score, r.name, r.tags 
+	OverlappingRegionsSql = `SELECT 
+		c.name, 
+		r.start, 
+		r.end, 
+		r.score,
+		r.tags 
 		FROM regions r
 		JOIN chromosomes c ON r.chr_id = c.id
 		WHERE c.name = :chr AND (r.start <= :end AND r.end >= :start)
@@ -169,7 +174,7 @@ func (bedb *BedsDB) Dir() string {
 }
 
 func NewBedsDB(dir string) *BedsDB {
-	db := sys.Must(sql.Open(sys.Sqlite3DB, filepath.Join(dir, "samples.db?mode=ro")))
+	db := sys.Must(sql.Open(sys.Sqlite3DB, filepath.Join(dir, "beds.db"+sys.SqliteReadOnlySuffix)))
 
 	//stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
 	//stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
@@ -360,7 +365,10 @@ func (bedb *BedsDB) Beds(genome string, platform string) ([]*BedSample, error) {
 	return ret, nil
 }
 
-func (bedb *BedsDB) Search(q string, assembly string, isAdmin bool, permissions []string) ([]*BedSample, error) {
+func (bedb *BedsDB) Search(q string,
+	assembly string,
+	isAdmin bool,
+	permissions []string) ([]*BedSample, error) {
 	var rows *sql.Rows
 	var err error
 
@@ -378,7 +386,7 @@ func (bedb *BedsDB) Search(q string, assembly string, isAdmin bool, permissions 
 	if q != "" {
 		namedArgs := []any{sql.Named("assembly", assembly),
 			sql.Named("id", q),
-			sql.Named("name", fmt.Sprintf("%%%s%%", q))}
+			sql.Named("q", fmt.Sprintf("%%%s%%", q))}
 
 		query := sqlite.MakePermissionsSql(SearchBedSql, isAdmin, permissions, &namedArgs)
 
