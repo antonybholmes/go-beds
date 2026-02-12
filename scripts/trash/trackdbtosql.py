@@ -59,8 +59,13 @@ with open(out, "w") as fout:
 
             if tokens[0] == "bigDataUrl":
                 url = tokens[1]
+
+                if "bb" not in url and "bigBed" not in url:
+                    print("Warning: url does not seem to be a bigBed", url)
+                    continue
+
                 publicId = uuid.uuid7()
-                # generate("0123456789abcdefghijklmnopqrstuvwxyz", 12)
+
                 print(
                     f"INSERT INTO samples (id, dataset_id, name, type, regions, url, tags) VALUES ('{publicId}', '{dataset_id}', '{name}', 'Remote BigBed', 0, '{url}', '');",
                     file=fout,

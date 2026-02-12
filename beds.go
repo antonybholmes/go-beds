@@ -28,16 +28,16 @@ type (
 	}
 
 	BedSample struct {
-		Id       string   `json:"id"`
-		Platform string   `json:"platform"`
-		Genome   string   `json:"genome"`
-		Assembly string   `json:"assembly"`
-		Dataset  string   `json:"dataset"`
-		Name     string   `json:"name"`
-		Type     string   `json:"type"`
-		Url      string   `json:"url"`
-		Tags     []string `json:"tags"`
-		Regions  int      `json:"regions"`
+		Id         string   `json:"id"`
+		Technology string   `json:"technology"`
+		Genome     string   `json:"genome"`
+		Assembly   string   `json:"assembly"`
+		Dataset    string   `json:"dataset"`
+		Name       string   `json:"name"`
+		Type       string   `json:"type"`
+		Url        string   `json:"url"`
+		Tags       []string `json:"tags"`
+		Regions    int      `json:"regions"`
 	}
 
 	BedReader struct {
@@ -48,9 +48,9 @@ type (
 const (
 	SelectBedSql = `SELECT DISTINCT 
 		s.id, 
-		d.genome, 
-		d.assembly, 
-		d.platform, 
+		g.name AS genome, 
+		a.name AS assembly, 
+		t.name AS technology, 
 		d.name AS dataset_name, 
 		s.name AS sample_name, 
 		s.type, 
@@ -58,6 +58,9 @@ const (
 		s.url, 
 		s.tags
 	FROM samples s
+	JOIN assemblies a ON s.assembly_id = a.id
+	JOIN genomes g ON a.genome_id = g.id
+	JOIN technologies t ON s.technology_id = t.id
 	JOIN datasets d ON s.dataset_id = d.id
 	JOIN dataset_permissions dp ON d.id = dp.dataset_id
 	JOIN permissions p ON dp.permission_id = p.id
@@ -82,9 +85,12 @@ const (
 			s.name`
 
 	SearchBedSql = BaseSearchSamplesSql +
-		` AND (s.id = :id OR d.id = :id OR d.platform = :id OR d.name LIKE :q OR s.name LIKE :q)
+		` AND (d.public_id = :id 
+			OR s.public_id = :id 
+			OR LOWER(d.name) LIKE :q 
+			OR LOWER(s.name) LIKE :q)
 		ORDER BY 
-			d.platform, 
+			a.name, 
 			d.name, 
 			s.name`
 
@@ -440,7 +446,7 @@ func rowToSample(rows *sql.Row) (*BedSample, error) {
 	err := rows.Scan(&sample.Id,
 		&sample.Genome,
 		&sample.Assembly,
-		&sample.Platform,
+		&sample.Technology,
 		&sample.Dataset,
 		&sample.Name,
 		&sample.Type,
@@ -464,7 +470,7 @@ func rowsToSample(rows *sql.Rows) (*BedSample, error) {
 	err := rows.Scan(&sample.Id,
 		&sample.Genome,
 		&sample.Assembly,
-		&sample.Platform,
+		&sample.Technology,
 		&sample.Dataset,
 		&sample.Name,
 		&sample.Type,

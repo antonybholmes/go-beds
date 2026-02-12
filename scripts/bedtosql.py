@@ -150,6 +150,30 @@ cursor.execute(
     f"INSERT INTO assemblies (id, public_id, genome_id, name) VALUES (3, '{uuid.uuid7()}', 2, 'GRCm39');"
 )
 
+assembly_map = {"hg19": 1, "GRCh38": 2, "GRCm39": 3}
+
+
+cursor.execute(
+    f"""
+    CREATE TABLE technologies (
+        id INTEGER PRIMARY KEY,
+        public_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL UNIQUE);
+    """,
+)
+
+cursor.execute(
+    f"INSERT INTO technologies (id, public_id, name) VALUES (1, '{uuid.uuid7()}', 'ChIP-seq');"
+)
+cursor.execute(
+    f"INSERT INTO technologies (id, public_id, name) VALUES (2, '{uuid.uuid7()}', 'RNA-seq');"
+)
+cursor.execute(
+    f"INSERT INTO technologies (id, public_id, name) VALUES (3, '{uuid.uuid7()}', 'CUT&RUN');"
+)
+
+technology_map = {"ChIP-seq": 1, "RNA-seq": 2, "CUT&RUN": 3}
+
 cursor.execute(
     f"""
     CREATE TABLE chromosomes (
@@ -203,7 +227,6 @@ cursor.execute(
 	id INTEGER PRIMARY KEY,
     public_id TEXT NOT NULL UNIQUE,
 	assembly_id INTEGER NOT NULL,
-    technology_id INTEGER NOT NULL,
     name TEXT NOT NULL, 
     description TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
@@ -233,11 +256,13 @@ cursor.execute(
 	id INTEGER PRIMARY KEY,
     public_id TEXT NOT NULL UNIQUE,
 	dataset_id INTEGER NOT NULL,
+    technology_id INTEGER NOT NULL,
 	name TEXT NOT NULL UNIQUE,
     type_id INTEGER NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
+    FOREIGN KEY(technology_id) REFERENCES technologies(id) ON DELETE CASCADE,
     FOREIGN KEY(type_id) REFERENCES sample_types(id) ON DELETE CASCADE
 );"""
 )
@@ -262,13 +287,12 @@ df_seq_samples = df_samples[df_samples["type"] == "Seq"]
 df_remote_bigwig_samples = df_samples[df_samples["type"] == "Remote BigWig"]
 
 dataset_map = {}
-
+sample_index = 1
 for i, row in df_seq_samples.iterrows():
     dataset = row["dataset"]
     sample = row["sample"]
     paired = row["paired"] == "True"
     bed = row["file"]
-    genome = row["genome"]
     assembly = row["assembly"]
     technology = row["technology"]
 
@@ -278,17 +302,22 @@ for i, row in df_seq_samples.iterrows():
         dataset_map[dataset] = {"index": dataset_id, "public_id": dataset_public_id}
 
         cursor.execute(
-            f"INSERT INTO datasets (id, public_id, assembly_id, technology_id, name) VALUES ({dataset_id}, '{dataset_public_id}', (SELECT id FROM assemblies WHERE name='{assembly}'), (SELECT id FROM technologies WHERE name='{technology}'), '{dataset}');",
+            f"""INSERT INTO datasets (id, public_id, assembly_id, name) VALUES (
+                {dataset_id}, 
+                '{dataset_public_id}', 
+                {assembly_map[assembly]}, 
+                '{dataset}');
+            """,
         )
 
-    sample_index = i + 1
     sample_id = str(uuid.uuid7())
 
     cursor.execute(
-        f"""INSERT INTO sample (id, public_id, dataset_id, name, type_id) VALUES (
+        f"""INSERT INTO sample (id, public_id, dataset_id, technology_id, name, type_id) VALUES (
             {sample_index},
             '{sample_id}', 
-            {dataset_map[dataset]['index']} 
+            {dataset_map[dataset]['index']},
+            {technology_map[technology]}, 
             '{sample}', 
             1);
         """,
@@ -324,6 +353,70 @@ for i, row in df_seq_samples.iterrows():
             )
 
             c += 1
+
+    sample_index += 1
+
+
+for i, row in df_remote_bigwig_samples.iterrows():
+    # insert the remote bigwig samples as well
+    dataset_name = row["dataset"]
+    sample = row["sample"]
+    genome = row["genome"]
+    assembly = row["assembly"]
+    technology = row["technology"]
+    type = row["type"]
+    file = row["file"]
+    scale = row["scale"]
+
+    if dataset_name not in dataset_map:
+        dataset_id = uuid.uuid7()
+        dataset = {
+            "public_id": str(uuid.uuid7()),
+            "index": len(dataset_map) + 1,
+            "assembly": assembly_map[assembly],
+            "name": dataset_name,
+        }
+
+        dataset_map[dataset_name] = dataset
+
+        print(dataset)
+
+        cursor.execute(
+            f"""INSERT INTO datasets (id, public_id, assembly_id, name) VALUES (
+                {dataset["index"]},
+                '{dataset["public_id"]}',
+                {dataset["assembly"]},
+                '{dataset["name"]}');""",
+        )
+
+    dataset = dataset_map[dataset_name]
+
+    with open(file, "r") as f:
+        for line in f:
+            line = line.strip()
+            tokens = line.split(" ")
+
+            if tokens[0] == "track":
+                name = tokens[1]
+
+            if tokens[0] == "bigDataUrl":
+                url = tokens[1]
+
+                if "bb" not in url and "bigBed" not in url:
+                    print("Warning: url does not seem to be a bigBed", url)
+                    continue
+
+                id = str(uuid.uuid7())
+                cursor.execute(
+                    f"""INSERT INTO samples (public_id, dataset_id, name, type_id, url) VALUES (
+                    '{id}',
+                    {dataset["index"]},
+                    '{name}',
+                    2,
+                    '{url}');
+                """,
+                )
+
 
 cursor.execute(
     """INSERT INTO dataset_permissions (dataset_id, permission_id) SELECT id, 1 FROM datasets;"""
