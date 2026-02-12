@@ -65,7 +65,6 @@ HUMAN_CHRS = [
     "chrM",
 ]
 
-CHR_MAP = {"Human": {chr: idx + 1 for idx, chr in enumerate(HUMAN_CHRS)}}
 
 MOUSE_CHRS = [
     "chr1",
@@ -92,7 +91,10 @@ MOUSE_CHRS = [
     "chrM",
 ]
 
-CHR_MAP["Mouse"] = {chr: idx + 1 for idx, chr in enumerate(MOUSE_CHRS)}
+CHR_MAP = {
+    "Human": {chr: idx + 1 for idx, chr in enumerate(HUMAN_CHRS)},
+    "Mouse": {chr: idx + 1 for idx, chr in enumerate(MOUSE_CHRS)},
+}
 
 db = os.path.join(
     dir,
@@ -233,7 +235,6 @@ cursor.execute(
 	dataset_id INTEGER NOT NULL,
 	name TEXT NOT NULL UNIQUE,
     type_id INTEGER NOT NULL,
-    url TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
@@ -245,12 +246,11 @@ cursor.execute(
     f"""
     CREATE TABLE regions (
         id INTEGER PRIMARY KEY,
-        public_id TEXT NOT NULL UNIQUE,
         sample_id INTEGER NOT NULL,
         chr_id INTEGER NOT NULL,
         start INTEGER NOT NULL,
         end INTEGER NOT NULL,
-        score REAL,
+        score REAL NOT NULL 0,
         FOREIGN KEY (chr_id) REFERENCES chromosomes(id) ON DELETE CASCADE,
         FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE);
     """,
@@ -261,6 +261,8 @@ df_samples = pd.read_csv(samples_file, sep="\t", header=0, keep_default_na=False
 df_seq_samples = df_samples[df_samples["type"] == "Seq"]
 df_remote_bigwig_samples = df_samples[df_samples["type"] == "Remote BigWig"]
 
+dataset_map = {}
+
 for i, row in df_seq_samples.iterrows():
     dataset = row["dataset"]
     sample = row["sample"]
@@ -269,6 +271,28 @@ for i, row in df_seq_samples.iterrows():
     genome = row["genome"]
     assembly = row["assembly"]
     technology = row["technology"]
+
+    if dataset not in dataset_map:
+        dataset_id = len(dataset_map) + 1
+        dataset_public_id = str(uuid.uuid7())
+        dataset_map[dataset] = {"index": dataset_id, "public_id": dataset_public_id}
+
+        cursor.execute(
+            f"INSERT INTO datasets (id, public_id, assembly_id, technology_id, name) VALUES ({dataset_id}, '{dataset_public_id}', (SELECT id FROM assemblies WHERE name='{assembly}'), (SELECT id FROM technologies WHERE name='{technology}'), '{dataset}');",
+        )
+
+    sample_index = i + 1
+    sample_id = str(uuid.uuid7())
+
+    cursor.execute(
+        f"""INSERT INTO sample (id, public_id, dataset_id, name, type_id) VALUES (
+            {sample_index},
+            '{sample_id}', 
+            {dataset_map[dataset]['index']} 
+            '{sample}', 
+            1);
+        """,
+    )
 
     with open(bed, "r") as fin:
         for line in fin:
@@ -281,32 +305,31 @@ for i, row in df_seq_samples.iterrows():
             tokens = line.split("\t")
             chr = tokens[0]
 
-            if chr not in chr_map:
+            if chr not in CHR_MAP[genome]:
                 continue
 
-            chr_id = chr_map[chr]
+            chr_id = CHR_MAP[genome][chr]
             start = tokens[1]
             end = tokens[2]
-            score = tokens[3] if len(tokens) > 3 else ""
+            score = float(tokens[3]) if len(tokens) > 3 else 0
 
-            if score != "":
-                print(
-                    f"INSERT INTO regions (chr_id, start, end, score) VALUES ({chr_id}, {start}, {end}, {score});",
-                    file=f,
-                )
-            else:
-                print(
-                    f"INSERT INTO regions (chr_id, start, end) VALUES ({chr_id}, {start}, {end});",
-                    file=f,
-                )
+            cursor.execute(
+                f"""INSERT INTO regions (sample_id, chr_id, start, end, score) VALUES (
+                    {sample_index}, 
+                    {chr_id}, 
+                    {start}, 
+                    {end}, 
+                    {score});
+                """,
+            )
 
             c += 1
 
-        print("COMMIT;", file=f)
+cursor.execute(
+    """INSERT INTO dataset_permissions (dataset_id, permission_id) SELECT id, 1 FROM datasets;"""
+)
 
-        print("BEGIN TRANSACTION;", file=f)
-        print(
-            f"INSERT INTO sample (id, genome, assembly, platform, name, type, regions) VALUES ('{public_id}', '{genome}', '{assembly}', '{platform}', '{sample}', 'BED', {c});",
-            file=f,
-        )
-        print("COMMIT;", file=f)
+cursor.execute("CREATE INDEX idx_datasets_name ON datasets(LOWER(name));")
+cursor.execute("CREATE INDEX idx_samples_name ON samples(LOWER(name));")
+
+conn.commit()
