@@ -86,9 +86,10 @@ const (
 
 	SearchBedSql = BaseSearchSamplesSql +
 		` AND (d.public_id = :id 
-			OR s.public_id = :id 
-			OR LOWER(d.name) LIKE :q 
-			OR LOWER(s.name) LIKE :q)
+			OR s.public_id = :id
+			OR LOWER(a.name) = :q
+			OR d.name LIKE :q 
+			OR s.name LIKE :q)
 		ORDER BY 
 			a.name, 
 			d.name, 
