@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/antonybholmes/go-beds"
+	"github.com/antonybholmes/go-dna"
 )
 
 var instance *beds.BedsDB
@@ -37,10 +38,14 @@ func Search(query string, assembly string, isAdmin bool, permissions []string) (
 	return instance.Search(query, assembly, isAdmin, permissions)
 }
 
-func ReaderFromId(sampleId string, isAdmin bool, permissions []string) (*beds.BedReader, error) {
-	return instance.ReaderFromId(sampleId, isAdmin, permissions)
+func Regions(sampleIds []string, location *dna.Location, isAdmin bool, permissions []string) ([]*beds.SampleBedRegions, error) {
+	return instance.Regions(sampleIds, location, isAdmin, permissions)
 }
 
-func CanViewSample(sampleId string, isAdmin bool, permissions []string) error {
-	return instance.CanViewSample(sampleId, isAdmin, permissions)
-}
+// func ReaderFromId(sampleId string, isAdmin bool, permissions []string) (*beds.BedReader, error) {
+// 	return instance.ReaderFromId(sampleId, isAdmin, permissions)
+// }
+
+// func CanViewSample(sampleId string, isAdmin bool, permissions []string) error {
+// 	return instance.CanViewSample(sampleId, isAdmin, permissions)
+// }

@@ -15,27 +15,30 @@ from nanoid import generate
 
 DIR = "../data/modules/beds"
 
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-b", "--bed", help="bed file")
-parser.add_argument("-p", "--platform", default="ChIP-seq", help="data plaform")
 
 parser.add_argument(
     "--samples",
     default="samples.tsv",
-    help="tsv file with columns: dataset, sample, paired, bam, genome, assembly, type",
+    help="tsv file with columns: dataset, sample, bam, genome, assembly, type",
 )
 
 parser.add_argument("-o", "--out", default=DIR, help="output directory")
 args = parser.parse_args()
 
 samples_file = args.samples
-bed = args.bed  # sys.argv[2]
-platform = args.platform
-genome = args.genome  # sys.argv[3]
-assembly = args.assembly  # sys.argv[4]
+outdir = args.out
 
-out = args.out
 
 HUMAN_CHRS = [
     "chr1",
@@ -97,7 +100,7 @@ CHR_MAP = {
 }
 
 db = os.path.join(
-    dir,
+    outdir,
     "beds.db",
 )
 
@@ -230,9 +233,7 @@ cursor.execute(
     name TEXT NOT NULL, 
     description TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
-	FOREIGN KEY(assembly_id) REFERENCES assemblies(id) ON DELETE CASCADE,
-    FOREIGN KEY(technology_id) REFERENCES technologies(id) ON DELETE CASCADE
-);
+	FOREIGN KEY(assembly_id) REFERENCES assemblies(id) ON DELETE CASCADE);
 """
 )
 
@@ -259,6 +260,8 @@ cursor.execute(
     technology_id INTEGER NOT NULL,
 	name TEXT NOT NULL UNIQUE,
     type_id INTEGER NOT NULL,
+    regions INTEGER NOT NULL DEFAULT -1,
+    url TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
@@ -275,7 +278,9 @@ cursor.execute(
         chr_id INTEGER NOT NULL,
         start INTEGER NOT NULL,
         end INTEGER NOT NULL,
-        score REAL NOT NULL 0,
+        name TEXT NOT NULL DEFAULT '',
+        score REAL NOT NULL DEFAULT 0,
+        tags TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (chr_id) REFERENCES chromosomes(id) ON DELETE CASCADE,
         FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE);
     """,
@@ -283,16 +288,16 @@ cursor.execute(
 
 df_samples = pd.read_csv(samples_file, sep="\t", header=0, keep_default_na=False)
 
-df_seq_samples = df_samples[df_samples["type"] == "Seq"]
-df_remote_bigwig_samples = df_samples[df_samples["type"] == "Remote BigWig"]
+df_seq_samples = df_samples[df_samples["type"] == "BED"]
+df_remote_bigbed_samples = df_samples[df_samples["type"] == "Remote BigBed"]
 
 dataset_map = {}
 sample_index = 1
 for i, row in df_seq_samples.iterrows():
     dataset = row["dataset"]
     sample = row["sample"]
-    paired = row["paired"] == "True"
     bed = row["file"]
+    genome = row["genome"]
     assembly = row["assembly"]
     technology = row["technology"]
 
@@ -313,7 +318,7 @@ for i, row in df_seq_samples.iterrows():
     sample_id = str(uuid.uuid7())
 
     cursor.execute(
-        f"""INSERT INTO sample (id, public_id, dataset_id, technology_id, name, type_id) VALUES (
+        f"""INSERT INTO samples (id, public_id, dataset_id, technology_id, name, type_id) VALUES (
             {sample_index},
             '{sample_id}', 
             {dataset_map[dataset]['index']},
@@ -323,6 +328,7 @@ for i, row in df_seq_samples.iterrows():
         """,
     )
 
+    region_count = 0
     with open(bed, "r") as fin:
         for line in fin:
             line = line.strip()
@@ -340,25 +346,40 @@ for i, row in df_seq_samples.iterrows():
             chr_id = CHR_MAP[genome][chr]
             start = tokens[1]
             end = tokens[2]
-            score = float(tokens[3]) if len(tokens) > 3 else 0
+            name = ""
+            score = 0
+
+            if len(tokens) > 3:
+                if is_number(tokens[3]):
+                    score = float(tokens[3])
+                else:
+                    name = tokens[3]
+
+            if len(tokens) > 4 and is_number(tokens[4]):
+                score = float(tokens[4])
 
             cursor.execute(
-                f"""INSERT INTO regions (sample_id, chr_id, start, end, score) VALUES (
+                f"""INSERT INTO regions (sample_id, chr_id, start, end, name, score) VALUES (
                     {sample_index}, 
                     {chr_id}, 
                     {start}, 
                     {end}, 
+                    '{name}',
                     {score});
                 """,
             )
 
-            c += 1
+            region_count += 1
+
+    cursor.execute(
+        f"""UPDATE samples SET regions = {region_count} WHERE id = {sample_index};"""
+    )
 
     sample_index += 1
 
 
-for i, row in df_remote_bigwig_samples.iterrows():
-    # insert the remote bigwig samples as well
+for i, row in df_remote_bigbed_samples.iterrows():
+    # insert the remote bigbed samples as well
     dataset_name = row["dataset"]
     sample = row["sample"]
     genome = row["genome"]
@@ -366,7 +387,6 @@ for i, row in df_remote_bigwig_samples.iterrows():
     technology = row["technology"]
     type = row["type"]
     file = row["file"]
-    scale = row["scale"]
 
     if dataset_name not in dataset_map:
         dataset_id = uuid.uuid7()
@@ -375,6 +395,7 @@ for i, row in df_remote_bigwig_samples.iterrows():
             "index": len(dataset_map) + 1,
             "assembly": assembly_map[assembly],
             "name": dataset_name,
+            "technology": technology_map[technology],
         }
 
         dataset_map[dataset_name] = dataset
@@ -408,9 +429,10 @@ for i, row in df_remote_bigwig_samples.iterrows():
 
                 id = str(uuid.uuid7())
                 cursor.execute(
-                    f"""INSERT INTO samples (public_id, dataset_id, name, type_id, url) VALUES (
+                    f"""INSERT INTO samples (public_id, dataset_id, technology_id, name, type_id, url) VALUES (
                     '{id}',
                     {dataset["index"]},
+                    {dataset["technology"]},
                     '{name}',
                     2,
                     '{url}');
@@ -424,5 +446,6 @@ cursor.execute(
 
 cursor.execute("CREATE INDEX idx_datasets_name ON datasets(LOWER(name));")
 cursor.execute("CREATE INDEX idx_samples_name ON samples(LOWER(name));")
-
+cursor.execute("CREATE INDEX idx_technologies_name ON technologies(LOWER(name));")
+cursor.execute("CREATE INDEX idx_genomes_name ON genomes(LOWER(name));")
 conn.commit()

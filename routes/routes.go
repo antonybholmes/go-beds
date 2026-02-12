@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/antonybholmes/go-beds"
 	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-web"
@@ -111,26 +110,13 @@ func BedRegionsRoute(c *gin.Context) {
 			return
 		}
 
-		ret := make([][]*beds.BedRegion, 0, len(params.Samples))
+		features, err := beddb.Regions(params.Samples, params.Location, isAdmin, user.Permissions)
 
-		for _, sample := range params.Samples {
-			reader, err := beddb.ReaderFromId(sample, isAdmin, user.Permissions)
-
-			if err != nil {
-				c.Error(err)
-				return
-			}
-
-			features, err := reader.OverlappingRegions(params.Location)
-
-			if err != nil {
-				c.Error(err)
-				return
-			}
-
-			ret = append(ret, features)
+		if err != nil {
+			c.Error(err)
+			return
 		}
 
-		web.MakeDataResp(c, "", ret)
+		web.MakeDataResp(c, "", features)
 	})
 }
