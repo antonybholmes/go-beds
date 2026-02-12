@@ -74,7 +74,7 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 // 	})
 // }
 
-func SearchBedsRoute(c *gin.Context) {
+func SearchSamplesRoute(c *gin.Context) {
 	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
 		assembly := c.Param("assembly")
 
@@ -85,14 +85,14 @@ func SearchBedsRoute(c *gin.Context) {
 
 		query := c.Query("search")
 
-		tracks, err := beddb.Search(query, assembly, isAdmin, user.Permissions)
+		samples, err := beddb.Search(query, assembly, isAdmin, user.Permissions)
 
 		if err != nil {
 			c.Error(err)
 			return
 		}
 
-		web.MakeDataResp(c, "", tracks)
+		web.MakeDataResp(c, "", samples)
 	})
 }
 
