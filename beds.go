@@ -427,9 +427,16 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 	var score float64
 	var name string
 	var tags string
-	var currentSampleBedRegion *SampleBedRegions
 
 	ret := make([]*SampleBedRegions, 0, len(sampleIds))
+
+	// create placeholders for all the samples we are looking for
+	sampleMap := make(map[string]*SampleBedRegions)
+
+	for _, sampleId := range sampleIds {
+		sampleMap[sampleId] = &SampleBedRegions{Sample: sampleId, Regions: make([]*BedRegion, 0, 10)}
+		ret = append(ret, sampleMap[sampleId])
+	}
 
 	for rows.Next() {
 		err := rows.Scan(&sampleId, &chr, &start, &end, &name, &score, &tags)
@@ -438,19 +445,19 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 			return ret, err //fmt.Errorf("there was an error with the database records")
 		}
 
-		if currentSampleBedRegion == nil || currentSampleBedRegion.Sample != sampleId {
-			currentSampleBedRegion = &SampleBedRegions{Sample: sampleId, Regions: make([]*BedRegion, 0, 10)}
-			ret = append(ret, currentSampleBedRegion)
+		// if sampleid in sampleMap, add to it
+		currentSampleBedRegion, ok := sampleMap[sampleId]
+
+		if ok {
+			location, err := dna.NewLocation(chr, start, end)
+
+			if err != nil {
+				return ret, err
+			}
+
+			currentSampleBedRegion.Regions = append(currentSampleBedRegion.Regions,
+				&BedRegion{Location: location, Name: name, Score: score, Tags: seqs.TagsToList(tags)})
 		}
-
-		location, err := dna.NewLocation(chr, start, end)
-
-		if err != nil {
-			return ret, err
-		}
-
-		currentSampleBedRegion.Regions = append(currentSampleBedRegion.Regions,
-			&BedRegion{Location: location, Name: name, Score: score, Tags: seqs.TagsToList(tags)})
 	}
 
 	return ret, nil
