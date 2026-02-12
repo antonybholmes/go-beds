@@ -85,7 +85,8 @@ const (
 			s.name`
 
 	SearchBedSql = BaseSearchSamplesSql +
-		` AND (d.public_id = :id 
+		` AND (
+			d.public_id = :id 
 			OR s.public_id = :id
 			OR LOWER(a.name) = :q
 			OR d.name LIKE :q 
