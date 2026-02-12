@@ -110,7 +110,7 @@ func (reader *BedReader) OverlappingRegions(location *dna.Location) ([]*BedRegio
 
 	//log.Debug().Msgf("hmm %s", reader.file)
 
-	db, err := sql.Open(sys.Sqlite3DB, reader.file)
+	db, err := sql.Open(sys.Sqlite3DB, reader.file+sys.SqliteReadOnlySuffix)
 
 	if err != nil {
 		return ret, err
