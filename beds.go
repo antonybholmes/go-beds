@@ -68,19 +68,25 @@ const (
 		<<PERMISSIONS>>`
 
 	BedsSql = SelectBedSql +
-		` AND assembly = :assembly AND platform = :platform 
-		ORDER BY name`
+		` AND a.name = :assembly
+		ORDER BY
+			t.name,
+			d.name,
+			s.name`
 
 	BedFromIdSql = SelectBedSql +
 		` AND s.id = :id
-		ORDER BY d.genome, d.platform, s.name`
+		ORDER BY
+			t.name,
+			d.name,
+			s.name`
 
 	BaseSearchSamplesSql = SelectBedSql +
-		` AND d.assembly = :assembly`
+		` AND a.name = :assembly`
 
 	AllBedsSql = BaseSearchSamplesSql +
 		` ORDER BY 
-			d.platform, 
+			t.name, 
 			d.name, 
 			s.name`
 
@@ -88,11 +94,11 @@ const (
 		` AND (
 			d.public_id = :id 
 			OR s.public_id = :id
-			OR LOWER(a.name) = :q
+			OR LOWER(t.name) = :q
 			OR d.name LIKE :q 
 			OR s.name LIKE :q)
 		ORDER BY 
-			a.name, 
+			t.name, 
 			d.name, 
 			s.name`
 
