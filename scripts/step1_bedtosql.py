@@ -124,7 +124,7 @@ cursor.execute(
         UNIQUE(name, scientific_name));
     """,
 )
-
+cursor.execute("CREATE INDEX idx_genomes_name ON genomes(LOWER(name));")
 cursor.execute(
     f"INSERT INTO genomes (id, public_id, name, scientific_name) VALUES (1, '{uuid.uuid7()}', 'Human', 'Homo sapiens');"
 )
@@ -142,6 +142,8 @@ cursor.execute(
         FOREIGN KEY (genome_id) REFERENCES genomes(id) ON DELETE CASCADE);
     """,
 )
+cursor.execute("CREATE INDEX idx_assemblies_name ON assemblies(LOWER(name));")
+cursor.execute("CREATE INDEX idx_assemblies_genome_id ON assemblies (genome_id);")
 
 cursor.execute(
     f"INSERT INTO assemblies (id, public_id, genome_id, name) VALUES (1, '{uuid.uuid7()}', 1, 'hg19');"
@@ -164,6 +166,7 @@ cursor.execute(
         name TEXT NOT NULL UNIQUE);
     """,
 )
+cursor.execute("CREATE INDEX idx_technologies_name ON technologies(LOWER(name));")
 
 cursor.execute(
     f"INSERT INTO technologies (id, public_id, name) VALUES (1, '{uuid.uuid7()}', 'ChIP-seq');"
@@ -188,17 +191,23 @@ cursor.execute(
         FOREIGN KEY (genome_id) REFERENCES genomes(id) ON DELETE CASCADE);
     """,
 )
+cursor.execute("CREATE INDEX idx_chromosomes_genome_id ON chromosomes (genome_id);")
 
-
+chr_map = {"Human": {}, "Mouse": {}}
+chr_index = 1
 for chr in HUMAN_CHRS:
     cursor.execute(
         f"INSERT INTO chromosomes (public_id, genome_id, chr_id, name) VALUES ('{str(uuid.uuid7())}', 1, {CHR_MAP['Human'][chr]}, '{chr}');",
     )
+    chr_map["Human"][chr] = chr_index
+    chr_index += 1
 
 for chr in MOUSE_CHRS:
     cursor.execute(
         f"INSERT INTO chromosomes (public_id, genome_id, chr_id, name) VALUES ('{str(uuid.uuid7())}', 2, {CHR_MAP['Mouse'][chr]}, '{chr}');",
     )
+    chr_map["Mouse"][chr] = chr_index
+    chr_index += 1
 
 
 cursor.execute(
@@ -219,6 +228,13 @@ cursor.execute(
 """
 )
 
+cursor.execute(
+    "CREATE INDEX idx_dataset_permissions_dataset_id ON dataset_permissions (dataset_id);"
+)
+cursor.execute(
+    "CREATE INDEX idx_dataset_permissions_permission_id ON dataset_permissions (permission_id);"
+)
+
 rdfViewId = str(uuid.uuid7())
 
 cursor.execute(
@@ -236,6 +252,10 @@ cursor.execute(
 	FOREIGN KEY(assembly_id) REFERENCES assemblies(id) ON DELETE CASCADE);
 """
 )
+
+cursor.execute("CREATE INDEX idx_datasets_name ON datasets(LOWER(name));")
+cursor.execute("CREATE INDEX idx_datasets_assembly_id ON datasets (assembly_id);")
+
 
 cursor.execute(
     f""" CREATE TABLE sample_types (
@@ -266,9 +286,14 @@ cursor.execute(
     tags TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
     FOREIGN KEY(technology_id) REFERENCES technologies(id) ON DELETE CASCADE,
-    FOREIGN KEY(type_id) REFERENCES sample_types(id) ON DELETE CASCADE
-);"""
+    FOREIGN KEY(type_id) REFERENCES sample_types(id) ON DELETE CASCADE);
+    """,
 )
+cursor.execute("CREATE INDEX idx_samples_name ON samples(LOWER(name));")
+cursor.execute("CREATE INDEX idx_samples_dataset_id ON samples (dataset_id);")
+cursor.execute("CREATE INDEX idx_samples_technology_id ON samples (technology_id);")
+cursor.execute("CREATE INDEX idx_samples_type_id ON samples (type_id);")
+
 
 cursor.execute(
     f"""
@@ -285,6 +310,9 @@ cursor.execute(
         FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE);
     """,
 )
+
+cursor.execute("CREATE INDEX idx_regions_sample_id ON regions (sample_id);")
+cursor.execute("CREATE INDEX idx_regions_chr_id ON regions (chr_id);")
 
 df_samples = pd.read_csv(samples_file, sep="\t", header=0, keep_default_na=False)
 
@@ -340,10 +368,10 @@ for i, row in df_seq_samples.iterrows():
             tokens = line.split("\t")
             chr = tokens[0]
 
-            if chr not in CHR_MAP[genome]:
+            if chr not in chr_map[genome]:
                 continue
 
-            chr_id = CHR_MAP[genome][chr]
+            chr_id = chr_map[genome][chr]
             start = tokens[1]
             end = tokens[2]
             name = ""
@@ -444,8 +472,5 @@ cursor.execute(
     """INSERT INTO dataset_permissions (dataset_id, permission_id) SELECT id, 1 FROM datasets;"""
 )
 
-cursor.execute("CREATE INDEX idx_datasets_name ON datasets(LOWER(name));")
-cursor.execute("CREATE INDEX idx_samples_name ON samples(LOWER(name));")
-cursor.execute("CREATE INDEX idx_technologies_name ON technologies(LOWER(name));")
-cursor.execute("CREATE INDEX idx_genomes_name ON genomes(LOWER(name));")
+
 conn.commit()
