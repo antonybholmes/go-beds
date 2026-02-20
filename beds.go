@@ -35,16 +35,17 @@ type (
 	}
 
 	BedSample struct {
-		Id         string   `json:"id"`
-		Technology string   `json:"technology"`
-		Genome     string   `json:"genome"`
-		Assembly   string   `json:"assembly"`
-		Dataset    string   `json:"dataset"`
-		Name       string   `json:"name"`
-		Type       string   `json:"type"`
-		Url        string   `json:"url"`
-		Tags       []string `json:"tags,omitempty"`
-		Regions    int      `json:"regions"`
+		Id          string   `json:"id"`
+		Technology  string   `json:"technology"`
+		Genome      string   `json:"genome"`
+		Assembly    string   `json:"assembly"`
+		Institution string   `json:"institution"`
+		Dataset     string   `json:"dataset"`
+		Name        string   `json:"name"`
+		Type        string   `json:"type"`
+		Url         string   `json:"url"`
+		Tags        []string `json:"tags,omitempty"`
+		Regions     int      `json:"regions"`
 	}
 
 	// BedReader struct {
@@ -66,6 +67,7 @@ const (
 		g.name AS genome, 
 		a.name AS assembly, 
 		t.name AS technology, 
+		ins.name AS institution,
 		d.name AS dataset_name, 
 		s.name AS sample_name, 
 		st.name AS type, 
@@ -75,6 +77,7 @@ const (
 	FROM samples s
 	JOIN technologies t ON s.technology_id = t.id
 	JOIN sample_types st ON s.type_id = st.id
+	JOIN institutions ins ON s.institution_id = ins.id
 	JOIN datasets d ON s.dataset_id = d.id
 	JOIN assemblies a ON d.assembly_id = a.id
 	JOIN genomes g ON a.genome_id = g.id
@@ -87,6 +90,7 @@ const (
 	BedsSql = SelectBedSql +
 		` ORDER BY
 			t.name,
+			ins.name,
 			d.name,
 			s.name`
 
@@ -94,12 +98,14 @@ const (
 		` AND s.id = :id
 		ORDER BY
 			t.name,
+			ins.name,
 			d.name,
 			s.name`
 
 	AllBedsSql = SelectBedSql +
 		` ORDER BY 
 			t.name, 
+			ins.name,
 			d.name, 
 			s.name`
 
@@ -107,11 +113,14 @@ const (
 		` AND (
 			d.public_id = :id 
 			OR s.public_id = :id
+			OR ins.public_id = :id
+			OR ins.name LIKE :q
 			OR t.name LIKE :q
 			OR d.name LIKE :q 
 			OR s.name LIKE :q)
 		ORDER BY 
-			t.name, 
+			t.name,
+			ins.name,
 			d.name, 
 			s.name`
 
@@ -260,6 +269,7 @@ func (bdb *BedsDB) Datasets(assembly string, isAdmin bool, permissions []string)
 		err := rows.Scan(&dataset.Id,
 			&dataset.Assembly,
 			&dataset.Platform,
+			&dataset.Institution,
 			&dataset.Name)
 
 		if err != nil {
@@ -514,6 +524,7 @@ func rowsToSample(rows *sql.Rows) (*BedSample, error) {
 		&sample.Genome,
 		&sample.Assembly,
 		&sample.Technology,
+		&sample.Institution,
 		&sample.Dataset,
 		&sample.Name,
 		&sample.Type,

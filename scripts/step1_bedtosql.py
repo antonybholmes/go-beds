@@ -178,6 +178,22 @@ cursor.execute(
     f"INSERT INTO technologies (id, public_id, name) VALUES (3, '{uuid.uuid7()}', 'CUT&RUN');"
 )
 
+cursor.execute(
+    f"""
+    CREATE TABLE institutions (
+        id INTEGER PRIMARY KEY,
+        public_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL UNIQUE);
+    """,
+)
+
+cursor.execute("CREATE INDEX idx_institutions_name_id ON institutions(LOWER(name));")
+cursor.execute(
+    f"INSERT INTO institutions (id, public_id, name) VALUES (1, '{uuid.uuid7()}', 'Columbia');"
+)
+
+institution_map = {"Columbia": 1}
+
 technology_map = {"ChIP-seq": 1, "RNA-seq": 2, "CUT&RUN": 3}
 
 cursor.execute(
@@ -246,14 +262,17 @@ cursor.execute(
 	id INTEGER PRIMARY KEY,
     public_id TEXT NOT NULL UNIQUE,
 	assembly_id INTEGER NOT NULL,
+    institution_id INTEGER NOT NULL,
     name TEXT NOT NULL, 
     description TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
-	FOREIGN KEY(assembly_id) REFERENCES assemblies(id) ON DELETE CASCADE);
+	FOREIGN KEY(assembly_id) REFERENCES assemblies(id) ON DELETE CASCADE,
+    FOREIGN KEY(institution_id) REFERENCES institutions(id) ON DELETE CASCADE);
 """
 )
 
 cursor.execute("CREATE INDEX idx_datasets_name ON datasets(LOWER(name));")
+cursor.execute("CREATE INDEX idx_datasets_institution_id ON datasets (institution_id);")
 cursor.execute("CREATE INDEX idx_datasets_assembly_id ON datasets (assembly_id);")
 
 
@@ -278,6 +297,7 @@ cursor.execute(
     public_id TEXT NOT NULL UNIQUE,
 	dataset_id INTEGER NOT NULL,
     technology_id INTEGER NOT NULL,
+    institution_id INTEGER NOT NULL,
 	name TEXT NOT NULL UNIQUE,
     type_id INTEGER NOT NULL,
     regions INTEGER NOT NULL DEFAULT -1,
@@ -286,11 +306,13 @@ cursor.execute(
     tags TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
     FOREIGN KEY(technology_id) REFERENCES technologies(id) ON DELETE CASCADE,
+    FOREIGN KEY(institution_id) REFERENCES institutions(id) ON DELETE CASCADE,
     FOREIGN KEY(type_id) REFERENCES sample_types(id) ON DELETE CASCADE);
     """,
 )
 cursor.execute("CREATE INDEX idx_samples_name ON samples(LOWER(name));")
 cursor.execute("CREATE INDEX idx_samples_dataset_id ON samples (dataset_id);")
+cursor.execute("CREATE INDEX idx_samples_institution_id ON samples (institution_id);")
 cursor.execute("CREATE INDEX idx_samples_technology_id ON samples (technology_id);")
 cursor.execute("CREATE INDEX idx_samples_type_id ON samples (type_id);")
 
@@ -328,6 +350,16 @@ for i, row in df_seq_samples.iterrows():
     genome = row["genome"]
     assembly = row["assembly"]
     technology = row["technology"]
+    institution = row["institution"]
+
+    if institution not in institution_map:
+        institution_id = len(institution_map) + 1
+
+        print(institution, institution_id)
+        institution_map[institution] = institution_id
+        cursor.execute(
+            f"INSERT INTO institutions (id, public_id, name) VALUES ({institution_id}, '{uuid.uuid7()}', '{institution}');"
+        )
 
     if dataset not in dataset_map:
         dataset_id = len(dataset_map) + 1
@@ -335,10 +367,11 @@ for i, row in df_seq_samples.iterrows():
         dataset_map[dataset] = {"index": dataset_id, "public_id": dataset_public_id}
 
         cursor.execute(
-            f"""INSERT INTO datasets (id, public_id, assembly_id, name) VALUES (
+            f"""INSERT INTO datasets (id, public_id, assembly_id, institution_id, name) VALUES (
                 {dataset_id}, 
                 '{dataset_public_id}', 
                 {assembly_map[assembly]}, 
+                {institution_map[institution]},
                 '{dataset}');
             """,
         )
@@ -346,11 +379,12 @@ for i, row in df_seq_samples.iterrows():
     sample_id = str(uuid.uuid7())
 
     cursor.execute(
-        f"""INSERT INTO samples (id, public_id, dataset_id, technology_id, name, type_id) VALUES (
+        f"""INSERT INTO samples (id, public_id, dataset_id, technology_id, institution_id, name, type_id) VALUES (
             {sample_index},
             '{sample_id}', 
             {dataset_map[dataset]['index']},
             {technology_map[technology]}, 
+            {institution_map[institution]},
             '{sample}', 
             1);
         """,
@@ -414,7 +448,15 @@ for i, row in df_remote_bigbed_samples.iterrows():
     assembly = row["assembly"]
     technology = row["technology"]
     type = row["type"]
+    institution = row["institution"]
     file = row["file"]
+
+    if institution not in institution_map:
+        institution_id = len(institution_map) + 1
+        institution_map[institution] = institution_id
+        cursor.execute(
+            f"INSERT INTO institutions (id, public_id, name) VALUES ({institution_id}, '{uuid.uuid7()}', '{institution}');"
+        )
 
     if dataset_name not in dataset_map:
         dataset_id = uuid.uuid7()
@@ -424,6 +466,7 @@ for i, row in df_remote_bigbed_samples.iterrows():
             "assembly": assembly_map[assembly],
             "name": dataset_name,
             "technology": technology_map[technology],
+            "institution": institution_map[institution],
         }
 
         dataset_map[dataset_name] = dataset
@@ -431,10 +474,11 @@ for i, row in df_remote_bigbed_samples.iterrows():
         print(dataset)
 
         cursor.execute(
-            f"""INSERT INTO datasets (id, public_id, assembly_id, name) VALUES (
+            f"""INSERT INTO datasets (id, public_id, assembly_id, institution_id, name) VALUES (
                 {dataset["index"]},
                 '{dataset["public_id"]}',
                 {dataset["assembly"]},
+                {institution_map[institution]},
                 '{dataset["name"]}');""",
         )
 
@@ -457,10 +501,11 @@ for i, row in df_remote_bigbed_samples.iterrows():
 
                 id = str(uuid.uuid7())
                 cursor.execute(
-                    f"""INSERT INTO samples (public_id, dataset_id, technology_id, name, type_id, url) VALUES (
+                    f"""INSERT INTO samples (public_id, dataset_id, technology_id,  institution_id, name, type_id, url) VALUES (
                     '{id}',
                     {dataset["index"]},
                     {dataset["technology"]},
+                    {dataset["institution"]},
                     '{name}',
                     2,
                     '{url}');
