@@ -8,7 +8,7 @@ import (
 	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-web"
-	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/antonybholmes/go-web/middleware"
 )
 
@@ -75,7 +75,7 @@ func ParseBedParamsFromPost(c *gin.Context) (*BedsParams, error) {
 // }
 
 func SearchSamplesRoute(c *gin.Context) {
-	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims) {
 		assembly := c.Param("assembly")
 
 		if assembly == "" {
@@ -97,7 +97,7 @@ func SearchSamplesRoute(c *gin.Context) {
 }
 
 func BedRegionsRoute(c *gin.Context) {
-	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims) {
+	middleware.JwtUserWithPermissionsRoute(c, func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims) {
 		params, err := ParseBedParamsFromPost(c)
 
 		if err != nil {
