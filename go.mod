@@ -13,7 +13,7 @@ replace github.com/antonybholmes/go-seqs => ../go-seqs
 replace github.com/antonybholmes/go-web => ../go-web
 
 require (
-	github.com/antonybholmes/go-seqs v0.0.0-20260217230139-27eede5c0922
+	github.com/antonybholmes/go-seqs v0.0.0-20260224183321-e92af13d14bd
 	github.com/antonybholmes/go-sys v0.0.0-20260216173437-1755a134eb0d
 	github.com/mattn/go-sqlite3 v1.14.34
 )
@@ -74,8 +74,8 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-dna v0.0.0-20260217230140-e57c465f5f15
-	github.com/antonybholmes/go-web v0.0.0-20260213183935-aaedefa50d12
+	github.com/antonybholmes/go-dna v0.0.0-20260220203430-f58fff3f7a19
+	github.com/antonybholmes/go-web v0.0.0-20260224185041-42ccb858f60c
 	github.com/gin-gonic/gin v1.11.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
