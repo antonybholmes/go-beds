@@ -1,6 +1,6 @@
 module github.com/antonybholmes/go-beds
 
-go 1.25.0
+go 1.26
 
 replace github.com/antonybholmes/go-dna => ../go-dna
 
@@ -13,13 +13,13 @@ replace github.com/antonybholmes/go-seqs => ../go-seqs
 replace github.com/antonybholmes/go-web => ../go-web
 
 require (
-	github.com/antonybholmes/go-seqs v0.0.0-20260403172900-f40c04d1d2d9
-	github.com/antonybholmes/go-sys v0.0.0-20260403172913-edaeb305202e
+	github.com/antonybholmes/go-seqs v0.0.0-20260414211826-26a73a9cbf6b
+	github.com/antonybholmes/go-sys v0.0.0-20260414211834-526fb62c6da0
 	github.com/mattn/go-sqlite3 v1.14.42
 )
 
 require (
-	github.com/antonybholmes/go-basemath v0.0.0-20260313220641-74ea9151950a // indirect
+	github.com/antonybholmes/go-basemath v0.0.0-20260414211833-d03296b3071e // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
@@ -56,7 +56,7 @@ require (
 	github.com/redis/go-redis/v9 v9.15.0 // indirect
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
-	github.com/rs/zerolog v1.35.0 // indirect
+	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
@@ -64,7 +64,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/xyproto/randomstring v1.2.0 // indirect
-	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
 	golang.org/x/arch v0.26.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
@@ -76,8 +76,8 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-dna v0.0.0-20260403172902-c96bf99098ff
-	github.com/antonybholmes/go-web v0.0.0-20260403172903-f845fdd34082
+	github.com/antonybholmes/go-dna v0.0.0-20260414211827-1ac7ff2467b6
+	github.com/antonybholmes/go-web v0.0.0-20260414211828-e0b24128d77c
 	github.com/gin-gonic/gin v1.12.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
