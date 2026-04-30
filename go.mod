@@ -15,7 +15,7 @@ replace github.com/antonybholmes/go-web => ../go-web
 require (
 	github.com/antonybholmes/go-seqs v0.0.0-20260422134513-6a1eccffc364
 	github.com/antonybholmes/go-sys v0.0.0-20260422134523-dadad00d6c60
-	github.com/mattn/go-sqlite3 v1.14.42
+	github.com/mattn/go-sqlite3 v1.14.44
 )
 
 require (
@@ -24,7 +24,7 @@ require (
 	github.com/bytedance/sonic v1.15.1 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sessions v1.0.2 // indirect
