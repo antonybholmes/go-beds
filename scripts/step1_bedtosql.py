@@ -286,7 +286,11 @@ cursor.execute(
     f"INSERT INTO sample_types (id, public_id, name) VALUES (1, '{uuid.uuid7()}', 'BED');"
 )
 cursor.execute(
-    f"INSERT INTO sample_types (id, public_id, name) VALUES (2, '{uuid.uuid7()}', 'Remote BigBed');"
+    f"INSERT INTO sample_types (id, public_id, name) VALUES (2, '{uuid.uuid7()}', 'BigBed');"
+)
+
+cursor.execute(
+    f"INSERT INTO sample_types (id, public_id, name) VALUES (3, '{uuid.uuid7()}', 'RemoteBigBed');"
 )
 
 cursor.execute(
@@ -298,7 +302,7 @@ cursor.execute(
     institution_id INTEGER NOT NULL,
 	name TEXT NOT NULL UNIQUE,
     type_id INTEGER NOT NULL,
-    regions INTEGER NOT NULL DEFAULT -1,
+    regions INTEGER NOT NULL DEFAULT 0,
     url TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     tags BLOB NOT NULL DEFAULT (json('[]')),
@@ -337,7 +341,7 @@ cursor.execute("CREATE INDEX idx_regions_chr_id ON regions (chr_id);")
 df_samples = pd.read_csv(samples_file, sep="\t", header=0, keep_default_na=False)
 
 df_seq_samples = df_samples[df_samples["type"] == "BED"]
-df_remote_bigbed_samples = df_samples[df_samples["type"] == "Remote BigBed"]
+df_remote_bigbed_samples = df_samples[df_samples["type"] == "BigBed"]
 
 dataset_map = {}
 sample_index = 1

@@ -368,7 +368,7 @@ func (bdb *BedsDB) Search(q string,
 
 		query := sqlite.MakePermissionsSql(SearchBedSql, isAdmin, permissions, &namedArgs)
 
-		log.Debug().Msgf("searching beds for query '%s' assembly '%s'", q, query)
+		//log.Debug().Msgf("searching beds for query '%s' assembly '%s'", q, query)
 
 		rows, err = bdb.db.Query(query, namedArgs...)
 	} else {
@@ -376,7 +376,7 @@ func (bdb *BedsDB) Search(q string,
 
 		query := sqlite.MakePermissionsSql(AllBedsSql, isAdmin, permissions, &namedArgs)
 
-		log.Debug().Msgf("searching beds for query '%s' assembly '%s'", query, AllBedsSql)
+		//log.Debug().Msgf("searching beds for query '%s' assembly '%s'", query, AllBedsSql)
 
 		rows, err = bdb.db.Query(query, namedArgs...)
 	}
