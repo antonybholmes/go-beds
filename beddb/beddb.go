@@ -10,9 +10,9 @@ import (
 var instance *beds.BedsDB
 var once sync.Once
 
-func InitBedDB(dir string) *beds.BedsDB {
+func InitBedDB(path string) *beds.BedsDB {
 	once.Do(func() {
-		instance = beds.NewBedsDB(dir)
+		instance = beds.NewBedsDB(path)
 	})
 
 	return instance

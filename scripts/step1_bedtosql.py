@@ -4,6 +4,7 @@ Encode read counts per base in 2 bytes
 
 @author: Antony Holmes
 """
+
 import argparse
 import os
 import sqlite3
@@ -34,10 +35,15 @@ parser.add_argument(
 )
 
 parser.add_argument("-o", "--out", default=DIR, help="output directory")
+parser.add_argument(
+    "--name", default="beds-20260504.db", help="name of output sqlite database"
+)
+
 args = parser.parse_args()
 
 samples_file = args.samples
 outdir = args.out
+dbname = args.name
 
 
 HUMAN_CHRS = [
@@ -101,7 +107,7 @@ CHR_MAP = {
 
 db = os.path.join(
     outdir,
-    "beds.db",
+    dbname,
 )
 
 if os.path.exists(db):
@@ -226,23 +232,19 @@ for chr in MOUSE_CHRS:
     chr_index += 1
 
 
-cursor.execute(
-    f""" CREATE TABLE permissions (
+cursor.execute(f""" CREATE TABLE permissions (
 	id INTEGER PRIMARY KEY ASC,
     public_id TEXT NOT NULL UNIQUE,
 	name TEXT NOT NULL);
-"""
-)
+""")
 
-cursor.execute(
-    f"""CREATE TABLE dataset_permissions (
+cursor.execute(f"""CREATE TABLE dataset_permissions (
 	dataset_id INTEGER,
     permission_id INTEGER,
     PRIMARY KEY(dataset_id, permission_id),
     FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
     FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE);
-"""
-)
+""")
 
 cursor.execute(
     "CREATE INDEX idx_dataset_permissions_dataset_id ON dataset_permissions (dataset_id);"
@@ -257,32 +259,28 @@ cursor.execute(
     f"INSERT INTO permissions (id, public_id, name) VALUES (1, '{rdfViewId}', 'rdf:view');"
 )
 
-cursor.execute(
-    f""" CREATE TABLE datasets (
+cursor.execute(f""" CREATE TABLE datasets (
 	id INTEGER PRIMARY KEY,
     public_id TEXT NOT NULL UNIQUE,
 	assembly_id INTEGER NOT NULL,
     institution_id INTEGER NOT NULL,
     name TEXT NOT NULL, 
     description TEXT NOT NULL DEFAULT '',
-    tags TEXT NOT NULL DEFAULT '',
+    tags BLOB NOT NULL DEFAULT (json('[]')),
 	FOREIGN KEY(assembly_id) REFERENCES assemblies(id) ON DELETE CASCADE,
     FOREIGN KEY(institution_id) REFERENCES institutions(id) ON DELETE CASCADE);
-"""
-)
+""")
 
 cursor.execute("CREATE INDEX idx_datasets_name ON datasets(LOWER(name));")
 cursor.execute("CREATE INDEX idx_datasets_institution_id ON datasets (institution_id);")
 cursor.execute("CREATE INDEX idx_datasets_assembly_id ON datasets (assembly_id);")
 
 
-cursor.execute(
-    f""" CREATE TABLE sample_types (
+cursor.execute(f""" CREATE TABLE sample_types (
 	id INTEGER PRIMARY KEY ASC,
     public_id TEXT NOT NULL UNIQUE,
 	name TEXT NOT NULL);
-"""
-)
+""")
 
 cursor.execute(
     f"INSERT INTO sample_types (id, public_id, name) VALUES (1, '{uuid.uuid7()}', 'BED');"
@@ -303,7 +301,7 @@ cursor.execute(
     regions INTEGER NOT NULL DEFAULT -1,
     url TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
-    tags TEXT NOT NULL DEFAULT '',
+    tags BLOB NOT NULL DEFAULT (json('[]')),
 	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
     FOREIGN KEY(technology_id) REFERENCES technologies(id) ON DELETE CASCADE,
     FOREIGN KEY(institution_id) REFERENCES institutions(id) ON DELETE CASCADE,
@@ -327,7 +325,7 @@ cursor.execute(
         end INTEGER NOT NULL,
         name TEXT NOT NULL DEFAULT '',
         score REAL NOT NULL DEFAULT 0,
-        tags TEXT NOT NULL DEFAULT '',
+        tags BLOB NOT NULL DEFAULT (json('[]')),
         FOREIGN KEY (chr_id) REFERENCES chromosomes(id) ON DELETE CASCADE,
         FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE);
     """,

@@ -3,7 +3,7 @@ package beds
 import (
 	"database/sql"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/antonybholmes/go-dna"
@@ -25,7 +25,7 @@ type (
 	BedRegion struct {
 		Location *dna.Location `json:"loc"`
 		Name     string        `json:"name,omitempty"`
-		Tags     []string      `json:"tags,omitempty"`
+		Tags     []seqs.Tag    `json:"tags,omitempty"`
 		Score    float64       `json:"score,omitempty"`
 	}
 
@@ -35,17 +35,17 @@ type (
 	}
 
 	BedSample struct {
-		Id          string   `json:"id"`
-		Technology  string   `json:"technology"`
-		Genome      string   `json:"genome"`
-		Assembly    string   `json:"assembly"`
-		Institution string   `json:"institution"`
-		Dataset     string   `json:"dataset"`
-		Name        string   `json:"name"`
-		Type        string   `json:"type"`
-		Url         string   `json:"url"`
-		Tags        []string `json:"tags,omitempty"`
-		Regions     int      `json:"regions"`
+		Id          string     `json:"id"`
+		Technology  string     `json:"technology"`
+		Genome      string     `json:"genome"`
+		Assembly    string     `json:"assembly"`
+		Institution string     `json:"institution"`
+		Dataset     string     `json:"dataset"`
+		Name        string     `json:"name"`
+		Type        string     `json:"type"`
+		Url         string     `json:"url"`
+		Tags        []seqs.Tag `json:"tags,omitempty"`
+		Regions     int        `json:"regions"`
 	}
 
 	// BedReader struct {
@@ -73,7 +73,7 @@ const (
 		st.name AS type, 
 		s.regions, 
 		s.url, 
-		s.tags
+		json(s.tags) AS tags
 	FROM samples s
 	JOIN technologies t ON s.technology_id = t.id
 	JOIN sample_types st ON s.type_id = st.id
@@ -132,7 +132,7 @@ const (
 		r.end, 
 		r.name,
 		r.score,
-		r.tags 
+		json(r.tags) AS tags
 		FROM regions r
 		JOIN chromosomes c ON r.chr_id = c.id
 		JOIN samples s ON r.sample_id = s.id
@@ -154,14 +154,14 @@ func (bdb *BedsDB) Dir() string {
 	return bdb.dir
 }
 
-func NewBedsDB(dir string) *BedsDB {
-	db := sys.Must(sql.Open(sys.Sqlite3DB, filepath.Join(dir, "beds.db"+sys.SqliteReadOnlySuffix)))
+func NewBedsDB(dbpath string) *BedsDB {
+	db := sys.Must(sql.Open(sys.Sqlite3DB, dbpath+sys.SqliteReadOnlySuffix))
 
 	//stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
 	//stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
 	//stmtBedFromId := sys.Must(db.Prepare(BED_FROM_ID_SQL))
 
-	return &BedsDB{dir: dir,
+	return &BedsDB{dir: path.Dir(dbpath),
 		db: db,
 	}
 }
@@ -330,16 +330,12 @@ func (bdb *BedsDB) Beds(genome string, platform string) ([]*BedSample, error) {
 
 	ret := make([]*BedSample, 0, 10)
 
-	var tags string
-
 	for rows.Next() {
 		sample, err := rowsToSample(rows)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
-
-		sample.Tags = seqs.TagsToList(tags)
 
 		ret = append(ret, sample)
 	}
@@ -394,16 +390,12 @@ func (bdb *BedsDB) Search(q string,
 
 	ret := make([]*BedSample, 0, 10)
 
-	var tags string
-
 	for rows.Next() {
 		sample, err := rowsToSample(rows)
 
 		if err != nil {
 			return nil, err //fmt.Errorf("there was an error with the database records")
 		}
-
-		sample.Tags = seqs.TagsToList(tags)
 
 		ret = append(ret, sample)
 	}
@@ -436,7 +428,7 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 	var end int
 	var score float64
 	var name string
-	var tags string
+	var tagData []byte
 
 	ret := make([]*SampleBedRegions, 0, len(sampleIds))
 
@@ -449,7 +441,7 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 	}
 
 	for rows.Next() {
-		err := rows.Scan(&sampleId, &chr, &start, &end, &name, &score, &tags)
+		err := rows.Scan(&sampleId, &chr, &start, &end, &name, &score, &tagData)
 
 		if err != nil {
 			return ret, err //fmt.Errorf("there was an error with the database records")
@@ -465,8 +457,14 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 				return ret, err
 			}
 
+			tags, err := seqs.TagsToList(tagData)
+
+			if err != nil {
+				return ret, err
+			}
+
 			currentSampleBedRegion.Regions = append(currentSampleBedRegion.Regions,
-				&BedRegion{Location: location, Name: name, Score: score, Tags: seqs.TagsToList(tags)})
+				&BedRegion{Location: location, Name: name, Score: score, Tags: tags})
 		}
 	}
 
@@ -518,7 +516,7 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 
 func rowsToSample(rows *sql.Rows) (*BedSample, error) {
 	var sample BedSample
-	var tags string
+	var tagData []byte
 
 	err := rows.Scan(&sample.Id,
 		&sample.Genome,
@@ -530,13 +528,19 @@ func rowsToSample(rows *sql.Rows) (*BedSample, error) {
 		&sample.Type,
 		&sample.Regions,
 		&sample.Url,
-		&tags)
+		&tagData)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database records")
 	}
 
-	sample.Tags = seqs.TagsToList(tags)
+	tags, err := seqs.TagsToList(tagData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sample.Tags = tags
 
 	return &sample, nil
 }
