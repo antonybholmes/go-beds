@@ -9,6 +9,7 @@ import (
 	"github.com/antonybholmes/go-dna"
 	"github.com/antonybholmes/go-seqs"
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-sys/db"
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth/sqlite"
@@ -155,7 +156,7 @@ func (bdb *BedsDB) Dir() string {
 }
 
 func NewBedsDB(dbpath string) *BedsDB {
-	db := sys.Must(sql.Open(sys.Sqlite3DB, dbpath+sys.SqliteReadOnlySuffix))
+	db := sys.Must(sql.Open(db.Sqlite3DB, dbpath+db.SqliteReadOnlySuffix))
 
 	//stmtAllBeds := sys.Must(db.Prepare(ALL_BEDS_SQL))
 	//stmtSearchBeds := sys.Must(db.Prepare(SEARCH_BED_SQL))
