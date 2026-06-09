@@ -12,7 +12,10 @@ replace github.com/antonybholmes/go-seqs => ../go-seqs
 
 replace github.com/antonybholmes/go-web => ../go-web
 
+replace github.com/antonybholmes/go-genome => ../go-genome
+
 require (
+	github.com/antonybholmes/go-genome v0.0.0-00010101000000-000000000000
 	github.com/antonybholmes/go-seqs v0.0.0-20260505195006-7230cc2de865
 	github.com/antonybholmes/go-sys v0.0.0-20260430223651-c5b58e98c9c6
 	github.com/mattn/go-sqlite3 v1.14.45

@@ -7,6 +7,7 @@ import (
 
 	"github.com/antonybholmes/go-beds/beddb"
 	"github.com/antonybholmes/go-dna"
+	"github.com/antonybholmes/go-genome"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/antonybholmes/go-web/middleware"
@@ -82,6 +83,8 @@ func SearchSamplesRoute(c *gin.Context) {
 			web.BadReqResp(c, ErrNoBedsSupplied)
 			return
 		}
+
+		assembly = genome.NormalizeAssembly(assembly)
 
 		query := c.Query("search")
 
