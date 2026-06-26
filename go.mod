@@ -20,7 +20,7 @@ require (
 )
 
 require (
-	github.com/antonybholmes/go-basemath v0.0.0-20260616152945-9dcd1ed04536 // indirect
+ 
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
