@@ -88,7 +88,7 @@ func SearchSamplesRoute(c *gin.Context) {
 
 		query := c.Query("search")
 
-		samples, err := beddb.Search(query, assembly, isAdmin, user.Permissions)
+		samples, err := beddb.Instance().Search(query, assembly, isAdmin, user.Permissions)
 
 		if err != nil {
 			c.Error(err)
@@ -113,7 +113,7 @@ func BedRegionsRoute(c *gin.Context) {
 			return
 		}
 
-		features, err := beddb.Regions(params.Samples, params.Location, isAdmin, user.Permissions)
+		features, err := beddb.Instance().Regions(params.Samples, params.Location, isAdmin, user.Permissions)
 
 		if err != nil {
 			c.Error(err)
