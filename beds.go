@@ -10,7 +10,6 @@ import (
 	"github.com/antonybholmes/go-seqs"
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-sys/db"
-	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth/sqlite"
 	_ "github.com/mattn/go-sqlite3"
@@ -196,10 +195,14 @@ func NewBedsDB(dbpath string) *BedsDB {
 func (bdb *BedsDB) CanViewSample(sampleId string, isAdmin bool, permissions []string) error {
 	namedArgs := []any{sql.Named("id", sampleId)}
 
-	query := sqlite.MakePermissionsSql(seqs.CanViewSampleSql, isAdmin, permissions, &namedArgs)
+	query, err := sqlite.MakePermissionsSql(seqs.CanViewSampleSql, isAdmin, permissions, &namedArgs)
+
+	if err != nil {
+		return err
+	}
 
 	var id string
-	err := bdb.db.QueryRow(query, namedArgs...).Scan(&id)
+	err = bdb.db.QueryRow(query, namedArgs...).Scan(&id)
 
 	// no rows means no permission
 	if err != nil {
@@ -250,7 +253,10 @@ func (bdb *BedsDB) Datasets(assembly string, isAdmin bool, permissions []string)
 	// build sql.Named args
 	namedArgs := []any{sql.Named("assembly", assembly)}
 
-	query := sqlite.MakePermissionsSql(seqs.DatasetsSql, isAdmin, permissions, &namedArgs)
+	query, err := sqlite.MakePermissionsSql(seqs.DatasetsSql, isAdmin, permissions, &namedArgs)
+	if err != nil {
+		return nil, err
+	}
 
 	// execute query
 
@@ -278,6 +284,10 @@ func (bdb *BedsDB) Datasets(assembly string, isAdmin bool, permissions []string)
 		}
 
 		ret = append(ret, &dataset)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil
@@ -362,29 +372,35 @@ func (bdb *BedsDB) Search(q string,
 	// } else {
 	//search all platforms within assembly
 
+	assembly, err = web.FormatParam(assembly)
+	if err != nil {
+		return nil, err
+	}
+
 	if q != "" {
-		namedArgs := []any{sql.Named("assembly", web.FormatParam(assembly)),
+		namedArgs := []any{sql.Named("assembly", assembly),
 			sql.Named("id", q),
 			sql.Named("q", fmt.Sprintf("%%%s%%", q))}
 
-		query := sqlite.MakePermissionsSql(SearchBedSql, isAdmin, permissions, &namedArgs)
+		query, err := sqlite.MakePermissionsSql(SearchBedSql, isAdmin, permissions, &namedArgs)
+		if err != nil {
+			return nil, err
+		}
 
 		//log.Debug().Msgf("searching beds for query '%s' assembly '%s'", q, query)
 
 		rows, err = bdb.db.Query(query, namedArgs...)
 	} else {
-		namedArgs := []any{sql.Named("assembly", web.FormatParam(assembly))}
+		namedArgs := []any{sql.Named("assembly", assembly)}
 
-		query := sqlite.MakePermissionsSql(AllBedsSql, isAdmin, permissions, &namedArgs)
+		query, err := sqlite.MakePermissionsSql(AllBedsSql, isAdmin, permissions, &namedArgs)
+		if err != nil {
+			return nil, err
+		}
 
 		//log.Debug().Msgf("searching beds for query '%s' assembly '%s'", query, AllBedsSql)
 
 		rows, err = bdb.db.Query(query, namedArgs...)
-	}
-
-	if err != nil {
-		log.Error().Msgf("error querying beds: %v", err)
-		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
 	defer rows.Close()
@@ -414,7 +430,10 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 		sql.Named("start", location.Start()),
 		sql.Named("end", location.End())}
 
-	query := sqlite.MakePermissionsSql(OverlappingRegionsSql, isAdmin, permissions, &namedArgs)
+	query, err := sqlite.MakePermissionsSql(OverlappingRegionsSql, isAdmin, permissions, &namedArgs)
+	if err != nil {
+		return nil, err
+	}
 	query = makeInSamplesSql(query, sampleIds, &namedArgs)
 
 	rows, err := bdb.db.Query(query, namedArgs...)
@@ -467,6 +486,10 @@ func (bdb *BedsDB) Regions(sampleIds []string, location *dna.Location, isAdmin b
 			currentSampleBedRegion.Regions = append(currentSampleBedRegion.Regions,
 				&BedRegion{Location: location, Name: name, Score: score, Tags: tags})
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

@@ -84,7 +84,11 @@ func SearchSamplesRoute(c *gin.Context) {
 			return
 		}
 
-		assembly = genome.NormalizeAssembly(assembly)
+		assembly, err := genome.NormalizeAssembly(assembly)
+		if err != nil {
+			web.BadReqResp(c, err)
+			return
+		}
 
 		query := c.Query("search")
 
